@@ -13,29 +13,32 @@ class CZL_Label {
         try {
             $order = wc_get_order($order_id);
             if (!$order) {
-                throw new Exception('订单不存在');
+                throw new Exception('Order not found');
             }
             
-            // 获取运单号
+            // 获取运单号和订单号
             $tracking_number = $order->get_meta('_czl_tracking_number');
             $czl_order_id = $order->get_meta('_czl_order_id');
-            
-            if (empty($tracking_number) && empty($czl_order_id)) {
-                throw new Exception('未找到运单号或订单号');
-            }
             
             // 构建标签URL
             $base_url = 'https://tms.czl.net/printOrderLabel.htm';
             $params = array();
             
-            if (!empty($tracking_number)) {
-                $params['documentCode'] = $tracking_number;
-            } else {
+            // 优先使用订单号
+            if (!empty($czl_order_id)) {
                 $params['order_id'] = $czl_order_id;
+                $url = add_query_arg($params, $base_url);
+                return $url;
             }
             
-            $url = add_query_arg($params, $base_url);
-            return $url;
+            // 如果没有订单号但有运单号，使用运单号
+            if (!empty($tracking_number)) {
+                $params['documentCode'] = $tracking_number;
+                $url = add_query_arg($params, $base_url);
+                return $url;
+            }
+            
+            throw new Exception('No tracking number or order ID found');
             
         } catch (Exception $e) {
             error_log('CZL Express Error: Failed to get label URL - ' . $e->getMessage());

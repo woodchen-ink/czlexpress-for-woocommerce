@@ -1,6 +1,10 @@
 <?php
 class CZL_Tracking {
+    private $api;
+    
     public function __construct() {
+        $this->api = new CZL_API();
+        
         // 添加定时任务钩子
         add_action('czl_update_tracking_cron', array($this, 'update_all_tracking_info'));
         
@@ -11,56 +15,93 @@ class CZL_Tracking {
     }
     
     /**
-     * 更新所有活跃订单的轨迹信息
+     * 更新所有活跃运单的轨迹信息
      */
     public function update_all_tracking_info() {
-        $orders = wc_get_orders(array(
-            'limit' => -1,
-            'status' => array('processing', 'shipping'),
-            'meta_key' => '_czl_tracking_number',
-            'meta_compare' => 'EXISTS'
-        ));
+        global $wpdb;
         
-        foreach ($orders as $order) {
-            $this->update_tracking_info($order->get_id());
+        // 获取所有需要更新的运单
+        $shipments = $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}czl_shipments 
+            WHERE status NOT IN ('delivered', 'cancelled', 'failed')"
+        );
+        
+        foreach ($shipments as $shipment) {
+            $this->update_tracking_info($shipment->tracking_number);
         }
     }
     
     /**
-     * 更新单个订单的轨迹信息
+     * 更新单个运单的轨迹信息
      */
-    public function update_tracking_info($order_id) {
+    public function update_tracking_info($tracking_number) {
+        global $wpdb;
+        
         try {
-            $order = wc_get_order($order_id);
-            if (!$order) {
+            // 获取运单信息
+            $shipment = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}czl_shipments WHERE tracking_number = %s",
+                $tracking_number
+            ));
+            
+            if (!$shipment) {
                 return;
             }
             
-            $tracking_number = $order->get_meta('_czl_tracking_number');
-            if (empty($tracking_number)) {
-                return;
-            }
+            // 获取轨迹信息
+            $tracking_info = $this->api->get_tracking($tracking_number);
             
-            $api = new CZL_API();
-            $tracking_info = $api->get_tracking($tracking_number);
-            
-            if (!empty($tracking_info)) {
-                // 保存轨迹信息
-                $order->update_meta_data('_czl_tracking_history', $tracking_info);
-                
-                // 根据最新轨迹更新订单状态
-                if (!empty($tracking_info['trackDetails'])) {
-                    $latest_status = reset($tracking_info['trackDetails']);
+            if (!empty($tracking_info['trackDetails'])) {
+                foreach ($tracking_info['trackDetails'] as $detail) {
+                    // 检查是否已存在该轨迹记录
+                    $exists = $wpdb->get_var($wpdb->prepare(
+                        "SELECT id FROM {$wpdb->prefix}czl_tracking_history 
+                        WHERE shipment_id = %d AND track_date = %s AND track_content = %s",
+                        $shipment->id,
+                        $detail['track_date'],
+                        $detail['track_content']
+                    ));
                     
-                    if (strpos($latest_status['track_content'], '已签收') !== false || 
-                        strpos($latest_status['track_content'], 'Delivered') !== false) {
-                        $order->update_status('delivered', __('Package delivered', 'woo-czl-express'));
-                    } elseif ($order->get_status() !== 'delivered') {
-                        $order->update_status('in_transit', __('Package in transit', 'woo-czl-express'));
+                    if (!$exists) {
+                        // 插入新的轨迹记录
+                        $wpdb->insert(
+                            $wpdb->prefix . 'czl_tracking_history',
+                            array(
+                                'shipment_id' => $shipment->id,
+                                'tracking_number' => $tracking_number,
+                                'track_date' => $detail['track_date'],
+                                'track_location' => $detail['track_location'],
+                                'track_content' => $detail['track_content'],
+                                'created_at' => current_time('mysql')
+                            ),
+                            array('%d', '%s', '%s', '%s', '%s', '%s')
+                        );
                     }
                 }
                 
-                $order->save();
+                // 更新运单状态
+                $latest = reset($tracking_info['trackDetails']);
+                $new_status = 'in_transit';
+                
+                if (strpos($latest['track_content'], '已签收') !== false || 
+                    strpos($latest['track_content'], 'Delivered') !== false) {
+                    $new_status = 'delivered';
+                }
+                
+                // 更新运单状态
+                $wpdb->update(
+                    $wpdb->prefix . 'czl_shipments',
+                    array('status' => $new_status),
+                    array('id' => $shipment->id),
+                    array('%s'),
+                    array('%d')
+                );
+                
+                // 更新WooCommerce订单状态
+                $order = wc_get_order($shipment->order_id);
+                if ($order) {
+                    $order->update_status($new_status, __('Package status updated from tracking info', 'woo-czl-express'));
+                }
             }
             
         } catch (Exception $e) {

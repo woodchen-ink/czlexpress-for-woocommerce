@@ -5,36 +5,30 @@ class CZL_Install {
         self::create_options();
     }
     
+    /**
+     * 创建数据表
+     */
     public static function create_tables() {
         global $wpdb;
         
         $charset_collate = $wpdb->get_charset_collate();
         
-        // 创建运单表
         $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}czl_shipments (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             order_id bigint(20) NOT NULL,
-            tracking_number varchar(50) NOT NULL,
-            label_url varchar(255) DEFAULT NULL,
-            shipping_method varchar(100) NOT NULL,
-            status varchar(50) DEFAULT 'pending',
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY  (id),
+            tracking_number varchar(50),
+            czl_order_id varchar(50),
+            reference_number varchar(50),
+            is_remote varchar(10),
+            is_residential varchar(10),
+            shipping_method varchar(50),
+            status varchar(20),
+            last_sync_time datetime DEFAULT NULL,
+            created_at datetime NOT NULL,
+            updated_at datetime NOT NULL,
+            PRIMARY KEY (id),
             KEY order_id (order_id),
             KEY tracking_number (tracking_number)
-        ) $charset_collate;";
-        
-        // 创建运费规则表
-        $sql .= "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}czl_shipping_rules (
-            id bigint(20) NOT NULL AUTO_INCREMENT,
-            name varchar(100) NOT NULL,
-            shipping_method varchar(100) NOT NULL,
-            czl_product_code varchar(100) NOT NULL,
-            price_adjustment varchar(255) DEFAULT NULL,
-            status int(1) DEFAULT 1,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY  (id)
         ) $charset_collate;";
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -42,11 +36,41 @@ class CZL_Install {
     }
     
     public static function create_options() {
-        // 添加默认配置选项
-        add_option('czl_api_url', '');
-        add_option('czl_username', '');
-        add_option('czl_password', '');
-        add_option('czl_exchange_rate', '1');
-        add_option('czl_product_groups', '');
+        add_option('czl_express_api_url', 'https://api.czl.net');
+        add_option('czl_express_api_key', '');
+        add_option('czl_express_api_secret', '');
+        add_option('czl_express_test_mode', 'yes');
+        add_option('czl_last_tracking_sync', 0);
+        add_option('czl_product_groups', array());
+    }
+    
+    public static function deactivate() {
+        // 只清理定时任务
+        wp_clear_scheduled_hook('czl_sync_tracking_numbers_hook');
+    }
+    
+    public static function uninstall() {
+        global $wpdb;
+        
+        // 只有在卸载时才删除数据
+        if (!defined('WP_UNINSTALL_PLUGIN')) {
+            return;
+        }
+        
+        // 删除数据表
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}czl_shipments");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}czl_tracking_history");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}czl_shipping_rules");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}czl_product_groups");
+        
+        // 删除选项
+        delete_option('czl_express_api_url');
+        delete_option('czl_express_api_key');
+        delete_option('czl_express_api_secret');
+        delete_option('czl_express_test_mode');
+        delete_option('czl_express_version');
+        delete_option('czl_last_tracking_sync');
+        delete_option('czl_express_db_version');
+        delete_option('czl_product_groups');
     }
 } 

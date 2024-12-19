@@ -192,6 +192,35 @@ class CZL_Rate_Calculator {
         }
     }
     
+    /**
+     * 计算单个产品的计费重
+     * @param WC_Product $product 产品对象
+     * @param int $quantity 数量
+     * @return float 计费重
+     */
+    private function calculate_chargeable_weight($product, $quantity) {
+        // 获取产品尺寸和重量
+        $length = (float)$product->get_length();
+        $width = (float)$product->get_width();
+        $height = (float)$product->get_height();
+        $actual_weight = (float)$product->get_weight();
+
+        // 确保所有值都大于0
+        $length = max($length, 1);
+        $width = max($width, 1);
+        $height = max($height, 1);
+        $actual_weight = max($actual_weight, 0.1);
+
+        // 计算体积重 (长*宽*高/5000)
+        $volumetric_weight = ($length * $width * $height) / 5000;
+
+        // 取实重和体积重中的较大值
+        $chargeable_weight = max($actual_weight, $volumetric_weight);
+
+        // 乘以数量
+        return $chargeable_weight * $quantity;
+    }
+
     public function calculate_shipping_rate($package) {
         try {
             error_log('CZL Express: Calculating shipping rate for package: ' . print_r($package, true));
@@ -202,44 +231,29 @@ class CZL_Rate_Calculator {
                 return array();
             }
             
-            // 获取包裹信息
-            $weight = 0;
-            $length = 0;
-            $width = 0;
-            $height = 0;
+            // 计算总计费重
+            $total_chargeable_weight = 0;
             
             foreach ($package['contents'] as $item) {
                 $product = $item['data'];
                 $quantity = $item['quantity'];
                 
-                // 累加重量
-                $item_weight = (float)$product->get_weight();
-                if ($item_weight > 0) {
-                    $weight += $item_weight * $quantity;
-                }
-                
-                // 获取最大尺寸
-                $item_length = (float)$product->get_length();
-                $item_width = (float)$product->get_width();
-                $item_height = (float)$product->get_height();
-                
-                $length = max($length, $item_length);
-                $width = max($width, $item_width);
-                $height = max($height, $item_height);
+                // 累加计费重
+                $total_chargeable_weight += $this->calculate_chargeable_weight($product, $quantity);
             }
             
             // 调用API获取运费
             $api_params = array(
-                'weight' => $weight > 0 ? $weight : 0.1, // 默认最小重量0.1kg
+                'weight' => $total_chargeable_weight,  // 使用计算出的总计费重
                 'country' => $package['destination']['country'],
                 'postcode' => $package['destination']['postcode'],
-                'length' => $length > 0 ? $length : 1,
-                'width' => $width > 0 ? $width : 1,
-                'height' => $height > 0 ? $height : 1,
-                'cargoType' => 'P'
+                'cargoType' => 'P',
+                'length' => 10,  // 添加固定尺寸
+                'width' => 10,   // 添加固定尺寸
+                'height' => 10   // 添加固定尺寸
             );
             
-            error_log('CZL Express: API params: ' . print_r($api_params, true));
+            error_log('CZL Express: API params with chargeable weight: ' . print_r($api_params, true));
             
             // 调用API获取运费
             $api_rates = $this->api->get_shipping_rate($api_params);
@@ -268,6 +282,8 @@ class CZL_Rate_Calculator {
                         if (strpos($product_name, $prefix) === 0) {
                             $group_id = sanitize_title($group['groupName']);
                             if (!isset($grouped_rates[$group_id]) || 
+                                !isset($grouped_rates[$group_id]['meta_data']) ||
+                                !isset($grouped_rates[$group_id]['meta_data']['original_amount']) ||
                                 $amount < $grouped_rates[$group_id]['meta_data']['original_amount']) {
                                 
                                 // 构建分组运费数据
@@ -328,9 +344,7 @@ class CZL_Rate_Calculator {
             return $delivery_time;
         }
         
-        // 匹配各种中文时效格式并转换为英文
-        
-        // 匹配"XX-XX个工作日"格式
+        // 匹配中文时效格式
         if (preg_match('/(\d+)-(\d+)个工作日/', $delivery_time, $matches)) {
             return sprintf('%d-%d working days', $matches[1], $matches[2]);
         }

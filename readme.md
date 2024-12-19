@@ -10,9 +10,9 @@
 
 ## 系统要求
 
-1. WordPress 5.0+
+1. WordPress 6.0+
 2. WooCommerce 6.0.0+
-3. PHP 7.0+
+3. PHP 7.4+
 4. MySQL 5.6+
 
 ## 特性
@@ -21,83 +21,35 @@
 2. 支持WooCommerce远程日志记录
 3. 支持多语言
 
-## 功能
-1. 支持快捷查价, 然后映射产品和woocommerce的运输方式. 其中, 查价结果里, 有一些产品, 比如 "UPS 红单-TA价", "UPS 红单-DA55价", 这种以"UPS 红单"开头的产品. 还有比如: "FEDEX IE-DT价", "FEDEX IE-DE价", 这种以"FEDEX IE"开头的产品. 我希望在查价结果里, 把他们显示为一个类别, 比如"UPS 红单", 然后这一行只显示最便宜的一个"UPS 红单"开头的产品价格和时效. 然后这个类别可以点击展开, 下面一个列表显示所有以"UPS 红单"开头的具体产品和相关信息. 并且可以自定义类别名称和产品开头, 例如这个配置: 
-  productGroupConfig: {
-					'UPS 蓝单': {
-						prefixes: ['UPS 蓝单'],
-						groupName: 'UPS 蓝单'
-					},
-					'UPS 红单': {
-						prefixes: ['UPS 红单'],
-						groupName: 'UPS 红单'
-					},
-					"江苏FEDEX IE": {
-						prefixes: ["江苏FEDEX IE"],
-						groupName: "江苏FEDEX IE"
-					},
-					"江苏FEDEX IP": {
-						prefixes: ["江苏FEDEX IP"],
-						groupName: "江苏FEDEX IP"
-					},
-					'FEDEX IE': {
-						prefixes: ['FEDEX IE'],
-						groupName: 'FEDEX IE'
-					},
-					'FEDEX IP': {
-						prefixes: ['FEDEX IP'],
-						groupName: 'FEDEX IP'
-					},
-					"DHL": {
-						prefixes: ["DHL"],
-						groupName: "DHL"
-					},
-					"欧美普货包税专线": {
-						prefixes: ["欧美经济专线(普货)","欧美标准专线(普货)","欧洲经济专线(普货)","欧洲标准专线(普货)"],
-						groupName: "欧美普货包税专线"
-					},
-					"欧美B类包税专线": {
-						prefixes: ["欧美经济专线(B类)","欧美标准专线(B类)","欧洲经济专线(B类)","欧洲标准专线(B类)"],
-						groupName: "欧美B类包税专线"
-					},
-					"欧美带电包税专线": {
-						prefixes: ["欧美经济专线(带电)","欧美标准专线(带电)","欧洲经济专线(带电)","欧洲标准专线(带电)"],
-						groupName: "欧美带电包税专线"
-					},
-					"迪拜DHL": {
-						prefixes: ["迪拜DHL"],
-						groupName: "迪拜DHL"
-					},
-					"迪拜UPS": {
-						prefixes: ["迪拜UPS"],
-						groupName: "迪拜UPS"
-					},
-					"迪拜FEDEX": {
-						prefixes: ["迪拜FEDEX"],
-						groupName: "迪拜FEDEX"
-					},
-					"邮政": {
-						prefixes: ["E特快","EMS"],
-						groupName: "邮政"
-					},
-					"CZL阿联酋专线": {
-						prefixes: ["CZL阿联酋"],
-						groupName: "CZL阿联酋专线"
-					},
-				}
+## 使用步骤
 
-  用户可以选择按产品分组映射woocommerce的运输方式. 也可以选择具体产品映射woocommerce的运输方式. 
+1. 安装本插件并启用
+2. 在插件-基本设置里, 配置CZLExpress的账号密码, 以及汇率
+3. 在WooCommerce的设置里, 选择'Shipping', 配置"Shipping zones", 新建一个"Zone", 地区选择全部, Shipping method选择"CZL Express", 进行配置, 然后保存 Zone.
+4. 在"CZL Express"-"产品分组" 里, 配置产品分组, 可以删除默认分组数据, 然后添加自定义分组, 例如: "SF Line","顺丰小包".
+5. 当客户下单时, 输入地址信息后, 会自动计算运费并显示, 提供给客户选择. 下单后, 运输信息会显示在"Orders"-"Edit order"里, 信息示例: 
+  ``` 
+	UPS Saver (3-6 working days) 
+	product_id:	10381
+	delivery_time:	3-6个工作日
+	original_name:	UPS 红单-T价
+	is_group:	1
+	group_name:	UPS Saver
+	original_amount:	747
+  ``` 
+6. 然后, 可以在"CZL Express"-"订单管理"里, 进行"创建运单", 会自动下单到CZL Express, 成功后可以"打印标签"
+7. 每半个小时会自动同步订单的跟踪单号(如果有变更). 也可以手动更改跟踪单号.
+8. 每一个小时会自动同步订单运输轨迹, 并且客户可以在订单详情页看到运输轨迹. 也支持点击"更新轨迹"进行手动更新.
+
+## 功能
+1. 用户可以选择按产品分组映射woocommerce的运输方式. 然后客户下单时就会自动显示每种运输方式的运费.
 
 2. 设置运输价格时, 可以设置在CZLExpress的运费上额外加上一定比例和固定金额, 支持表达式, 例如"10% + 10", 那么就是CZLExpress的运费乘以1.1, 然后加上10元. 
 
-3. 支持设置账号密码, 然后在woocommerce订单列表, 支持快捷下单到CZLExpress, 如果下单无误, 支持打印标签,如果下单有问题, 显示报错内容, 可以手动修改, 然后打印标签. 
+3. 支持设置账号密码, 然后在woocommerce订单列表, 支持快捷下单到CZLExpress, 如果下单成功, 支持打印标签.
 
-4. 在woocommerce的订单详情页, 显示CZLExpress的订单跟踪号, 并且可以点击跟踪号, 跳转到CZLExpress的订单跟踪页面. 
+4. 在插件的"订单管理"里, 显示CZLExpress的订单跟踪号, 并且可以点击跟踪号, 跳转到CZLExpress的订单跟踪页面. 
 
-5. 在woocommerce的订单详情页, 显示CZLExpress的订单标签, 并且可以点击标签, 跳转到CZLExpress的订单标签下载页面. 
-
-6. 可以把订单运输轨迹, 显示在woocommerce的订单详情页. 
-
-7. 当用户在woocommerce下单时, 自动查询偏远和偏远费用, 然后加到运输费用里. 并且也单独显示偏远和偏远费用. 
+5. 可以把订单运输轨迹, 显示在woocommerce的订单公开备注里, 客户可以看到.
 
 

@@ -12,143 +12,135 @@ if (!class_exists('CZL_Order')) {
          * 创建运单
          */
         public function create_shipment($order_id) {
+            global $wpdb;
+            
             try {
+                error_log('CZL Express: Starting create shipment for order ' . $order_id);
+                
+                // 更新订单备注以显示处理状态
                 $order = wc_get_order($order_id);
                 if (!$order) {
-                    throw new Exception('订单不存在');
+                    throw new Exception('订单未找到');
                 }
                 
+                // 添加处理中的状态提示
+                $order->add_order_note('正在创建运单，请稍候...');
+                $order->save();
+                
                 // 检查是否已有运单
-                $tracking_number = $order->get_meta('_czl_tracking_number');
-                if (!empty($tracking_number)) {
-                    throw new Exception('订单已存在运单号');
+                $existing_shipment = $wpdb->get_row($wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}czl_shipments WHERE order_id = %d",
+                    $order_id
+                ));
+                
+                if ($existing_shipment) {
+                    $order->add_order_note('Shipment already exists for this order');
+                    throw new Exception('Shipment already exists for this order');
                 }
                 
                 // 获取运输方式信息
                 $shipping_methods = $order->get_shipping_methods();
                 $shipping_method = current($shipping_methods);
-                
-                // 从配送方式元数据中获取product_id
                 $product_id = $shipping_method->get_meta('product_id');
-                if (empty($product_id)) {
-                    throw new Exception('未找到运输方式ID');
-                }
                 
-                // 在create_shipment方法中添加手机号和联系电话
-                $phone = $order->get_billing_phone();
-                // 清理电话号码，只保留数字
-                $phone = preg_replace('/[^0-9]/', '', $phone);
+                if (empty($product_id)) {
+                    throw new Exception('Shipping method not found');
+                }
                 
                 // 准备运单数据
                 $shipment_data = array(
-                    'buyerid' => $order->get_id(),
+                    'buyerid' => strval($order->get_id()),
                     'consignee_address' => $order->get_shipping_address_1() . ' ' . $order->get_shipping_address_2(),
                     'consignee_city' => $order->get_shipping_city(),
-                    'consignee_mobile' => $order->get_billing_phone(),      // 使用原始手机号
-                    'consignee_telephone' => $order->get_billing_phone(),   // 使用原始手机号作为联系电话
+                    'consignee_mobile' => $order->get_billing_phone(),
+                    'consignee_telephone' => $order->get_billing_phone(),
                     'consignee_name' => $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name(),
                     'consignee_postcode' => $order->get_shipping_postcode(),
                     'consignee_state' => $order->get_shipping_state(),
                     'country' => $order->get_shipping_country(),
-                    'order_piece' => $this->get_order_items_count($order),
-                    'product_id' => $product_id,
+                    'order_piece' => strval($this->get_order_items_count($order)),
+                    'product_id' => strval($product_id),
                     'trade_type' => 'ZYXT',
-                    'weight' => $this->get_order_weight($order),
-                    'orderInvoiceParam' => array()
+                    'weight' => strval($this->get_order_weight($order)),
+                    'length' => '10',
+                    'width' => '10',
+                    'height' => '10',
+                    'orderInvoiceParam' => $this->prepare_invoice_items($order)
                 );
-                
-                // 添加发票信息
-                foreach ($order->get_items() as $item) {
-                    $product = $item->get_product();
-                    if (!$product) {
-                        continue;
-                    }
-                    
-                    // 获取中文品名
-                    $name_cn = $product->get_meta('_czl_name_cn');
-                    if (empty($name_cn)) {
-                        throw new Exception('产品 ' . $product->get_name() . ' 缺少中文品名');
-                    }
-                    
-                    // 获取海关编码
-                    $hs_code = $product->get_meta('_czl_hs_code');
-                    if (empty($hs_code)) {
-                        throw new Exception('产品 ' . $product->get_name() . ' 缺少海关编码');
-                    }
-                    
-                    // 获取用途和材质
-                    $usage = $product->get_meta('_czl_usage');
-                    if (empty($usage)) {
-                        throw new Exception('产品 ' . $product->get_name() . ' 缺少用途信息');
-                    }
-                    
-                    $material = $product->get_meta('_czl_material');
-                    if (empty($material)) {
-                        throw new Exception('产品 ' . $product->get_name() . ' 缺少材质信息');
-                    }
-                    
-                    $shipment_data['orderInvoiceParam'][] = array(
-                        'invoice_amount' => $item->get_total(),
-                        'invoice_pcs' => $item->get_quantity(),
-                        'invoice_title' => $item->get_name(),     // 英文品名（原商品名）
-                        'invoice_weight' => $product->get_weight() * $item->get_quantity(),
-                        'sku' => $name_cn,                        // 中文品名
-                        'hs_code' => $hs_code,                    // 海关编码
-                        'invoice_material' => $material,          // 材质
-                        'invoice_purpose' => $usage,              // 用途
-                        'item_id' => $product->get_id(),
-                        'sku_code' => $product->get_sku()         // SKU作为配货信息
-                    );
-                }
                 
                 // 调用API创建运单
                 $result = $this->api->create_shipment($shipment_data);
+                error_log('CZL Express: API response - ' . print_r($result, true));
                 
-                // 记录API响应
-                error_log('CZL Express: Create shipment response - ' . print_r($result, true));
-                
-                // 检查是否有订单号，即使API返回失败
-                if (!empty($result['order_id'])) {
-                    // 更新订单元数据
-                    $order->update_meta_data('_czl_order_id', $result['order_id']);
+                // 检查API响应状态
+                if ($result['ack'] !== 'true') {
+                    $error_msg = isset($result['message']) && !empty($result['message']) 
+                        ? urldecode($result['message']) 
+                        : '创建运单失败，请稍后重试或联系客服';
                     
-                    // 如果有跟踪号，也保存下来
-                    if (!empty($result['tracking_number'])) {
-                        $order->update_meta_data('_czl_tracking_number', $result['tracking_number']);
-                    }
-                    
-                    // 保存偏远地区信息（如果有）
-                    if (isset($result['is_remote'])) {
-                        $order->update_meta_data('_czl_is_remote', $result['is_remote']);
-                    }
-                    if (isset($result['is_residential'])) {
-                        $order->update_meta_data('_czl_is_residential', $result['is_residential']);
-                    }
-                    
-                    // 如果API返回失败但有订单号，记录错误信息
-                    if ($result['ack'] !== 'true') {
-                        $error_msg = isset($result['message']) ? urldecode($result['message']) : 'Unknown error';
+                    // 如果有订单号但API返回失败，记录警告并继续
+                    if (!empty($result['order_id']) || !empty($result['tracking_number'])) {
                         $order->add_order_note(sprintf(
-                            __('Shipment partially created. Order ID: %s. Error: %s', 'woo-czl-express'),
+                            'Shipment Creation Warning: %s (Order ID: %s, Tracking Number: %s)',
+                            $error_msg,
                             $result['order_id'],
-                            $error_msg
+                            $result['tracking_number']
                         ));
-                        $order->update_status('on-hold', __('Shipment needs manual processing', 'woo-czl-express'));
                     } else {
-                        $order->update_status('in_transit', __('Package in transit', 'woo-czl-express'));
+                        // 如果没有订单号，抛出异常
+                        throw new Exception($error_msg);
                     }
+                }
+
+                // 检查是否有订单号或跟踪号
+                if (!empty($result['order_id']) || !empty($result['tracking_number'])) {
+                    // 保存运单信息到数据库
+                    $wpdb->insert(
+                        $wpdb->prefix . 'czl_shipments',
+                        array(
+                            'order_id' => $order_id,
+                            'tracking_number' => $result['tracking_number'],
+                            'czl_order_id' => $result['order_id'],
+                            'reference_number' => $result['reference_number'],
+                            'is_remote' => $result['is_remote'],
+                            'is_residential' => $result['is_residential'],
+                            'shipping_method' => $shipping_method->get_method_id(),
+                            'status' => $result['ack'] === 'true' ? 'pending' : 'warning',
+                            'created_at' => current_time('mysql'),
+                            'updated_at' => current_time('mysql')
+                        ),
+                        array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+                    );
                     
+                    // 更新订单元数据
+                    $order->update_meta_data('_czl_tracking_number', $result['tracking_number']);
+                    $order->update_meta_data('_czl_order_id', $result['order_id']);
+                    $order->update_meta_data('_czl_reference_number', $result['reference_number']);
                     $order->save();
                     
-                    // 即使API返回失败，只要有订单号就返回结果
-                    return $result;
+                    // 添加成功提示
+                    $order->add_order_note(sprintf(
+                        'Shipment created successfully (Order ID: %s, Tracking Number: %s)',
+                        $result['order_id'],
+                        $result['tracking_number']
+                    ));
+                    
+                    return true;
                 } else {
-                    throw new Exception('创建运单失败：未获取到订单号');
+                    throw new Exception('API未返回运单号或跟踪号');
                 }
                 
             } catch (Exception $e) {
-                error_log('CZL Express Error: ' . $e->getMessage());
-                throw $e;
+                error_log('CZL Express Error: Create shipment failed - ' . $e->getMessage());
+                error_log('CZL Express Error Stack Trace: ' . $e->getTraceAsString());
+                
+                // 添加错误提示到订单备注
+                if (isset($order)) {
+                    $order->add_order_note('运单创建失败: ' . $e->getMessage());
+                }
+                
+                // 抛出异常以便上层处理
+                throw new Exception($e->getMessage());
             }
         }
         
@@ -178,59 +170,135 @@ if (!class_exists('CZL_Order')) {
             $items = array();
             foreach ($order->get_items() as $item) {
                 $product = $item->get_product();
+                if (!$product) {
+                    continue;
+                }
+                
+                // 获取产品尺寸，确保是数字类型
+                $length = floatval($product->get_length() ?: 10);
+                $width = floatval($product->get_width() ?: 10);
+                $height = floatval($product->get_height() ?: 10);
+                
                 $items[] = array(
-                    'invoice_amount' => $item->get_total(),
-                    'invoice_pcs' => $item->get_quantity(),
+                    'invoice_amount' => strval($item->get_total()),  // 转为字符串
+                    'invoice_pcs' => intval($item->get_quantity()),  // 确保是整数
                     'invoice_title' => $item->get_name(),
-                    'invoice_weight' => $product ? ($product->get_weight() * $item->get_quantity()) : 0.1,
-                    'item_id' => $product ? $product->get_id() : '',
-                    'sku' => $product ? $product->get_sku() : ''
+                    'invoice_weight' => floatval($product->get_weight() * $item->get_quantity()),  // 确保是数字
+                    'sku' => $product->get_meta('_czl_name_cn'),
+                    'hs_code' => $product->get_meta('_czl_hs_code'),
+                    'invoice_material' => $product->get_meta('_czl_material'),
+                    'invoice_purpose' => $product->get_meta('_czl_usage'),
+                    'item_id' => strval($product->get_id()),  // 转为字符串
+                    'sku_code' => $product->get_sku(),
+                    'length' => strval($length),  // 转为字符串
+                    'width' => strval($width),    // 转为字符串
+                    'height' => strval($height)   // 转为字符串
                 );
             }
             return $items;
         }
         
         /**
-         * 更新订单轨迹信息
+         * 更新运单轨迹信息
          */
         public function update_tracking_info($order_id) {
-            try {
-                $order = wc_get_order($order_id);
-                if (!$order) {
-                    return;
-                }
+            global $wpdb;
+            
+            // 获取运单信息
+            $shipment = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}czl_shipments WHERE order_id = %d",
+                $order_id
+            ));
+            
+            if (!$shipment || empty($shipment->tracking_number)) {
+                throw new Exception('未找到运单信息');
+            }
+            
+            // 获取轨迹信息
+            $api = new CZL_API();
+            $tracking_info = $api->get_tracking_info($shipment->tracking_number);
+            error_log('CZL Express: Tracking API response - ' . print_r($tracking_info, true));
+            
+            // 处理API响应
+            if (!empty($tracking_info) && isset($tracking_info['success']) && $tracking_info['success'] == 1) {
+                // 检查API返回的状态
+                $api_status = isset($tracking_info['data']['status']) ? strtolower(trim($tracking_info['data']['status'])) : '';
+                $is_delivered = ($api_status === 'delivered');
                 
-                $tracking_number = $order->get_meta('_czl_tracking_number');
-                if (empty($tracking_number)) {
-                    return;
-                }
-                
-                // 获取轨迹信息
-                $tracking_info = $this->api->get_tracking_info($tracking_number);
-                if (empty($tracking_info)) {
-                    return;
-                }
-                
-                // 保存轨迹信息
-                $order->update_meta_data('_czl_tracking_history', $tracking_info);
-                
-                // 根据最新轨迹更新订单状态
-                $latest_status = end($tracking_info['trackDetails']);
-                if ($latest_status) {
-                    // 检查是否已签收
-                    if (strpos($latest_status['track_content'], '已签收') !== false || 
-                        strpos($latest_status['track_content'], 'Delivered') !== false) {
-                        $order->update_status('delivered', __('包裹已送达', 'woo-czl-express'));
-                    } else {
-                        $order->update_status('shipping', __('包裹运输中', 'woo-czl-express'));
+                // 如果API状态不是delivered，再检查轨迹详情
+                if (!$is_delivered && isset($tracking_info[0]['data'][0]['trackDetails']) && is_array($tracking_info[0]['data'][0]['trackDetails'])) {
+                    $latest_track = $tracking_info[0]['data'][0]['trackDetails'][0];
+                    $track_signdate = isset($latest_track['track_signdate']) ? trim($latest_track['track_signdate']) : '';
+                    $track_signperson = isset($latest_track['track_signperson']) ? trim($latest_track['track_signperson']) : '';
+                    
+                    // 如果有签收时间和签收人，也认为是已签收
+                    if (!empty($track_signdate) && !empty($track_signperson)) {
+                        $is_delivered = true;
                     }
                 }
                 
-                $order->save();
+                // 更新运单表状态
+                $wpdb->update(
+                    $wpdb->prefix . 'czl_shipments',
+                    array(
+                        'status' => $is_delivered ? 'delivered' : 'in_transit',
+                        'last_sync_time' => current_time('mysql')
+                    ),
+                    array('order_id' => $order_id),
+                    array('%s', '%s'),
+                    array('%d')
+                );
                 
-            } catch (Exception $e) {
-                error_log('CZL Express Error: Failed to update tracking info - ' . $e->getMessage());
+                // 获取订单对象
+                $order = wc_get_order($order_id);
+                if ($order) {
+                    // 根据签收状态更新订单状态
+                    if ($is_delivered && $order->get_status() !== 'completed') {
+                        $order->update_status('completed', sprintf('包裹已签收（%s），订单自动完成', 
+                            $tracking_info['data']['track_content']
+                        ));
+                    }
+                    
+                    try {
+                        // 构建轨迹信息
+                        $note_content = array();
+                        $note_content[] = 'Package Status Update:';
+                        
+                        if (!empty($tracking_info['data']['track_content'])) {
+                            $note_content[] = sprintf('Status: %s', $tracking_info['data']['track_content']);
+                        }
+                        
+                        if (!empty($tracking_info['data']['track_location'])) {
+                            $note_content[] = sprintf('Location: %s', $tracking_info['data']['track_location']);
+                        }
+                        
+                        if (!empty($tracking_info['data']['track_time'])) {
+                            $note_content[] = sprintf('Time: %s', $tracking_info['data']['track_time']);
+                        }
+                        
+                        $note_content[] = sprintf('Tracking Number: %s', $shipment->tracking_number);
+                        $note_content[] = '';
+                        $note_content[] = sprintf('Track your package: https://exp.czl.net/track/?query=%s', $shipment->tracking_number);
+                        
+                        // 添加新的轨迹信息
+                        $note = implode("\n", array_filter($note_content));
+                        $comment_id = $order->add_order_note($note, 1);
+                        
+                        if (!$comment_id) {
+                            throw new Exception('Failed to add order note');
+                        }
+                        
+                        $order->save();
+                        return true;
+                        
+                    } catch (Exception $e) {
+                        error_log('CZL Express: Error updating tracking info - ' . $e->getMessage());
+                        throw $e;
+                    }
+                }
             }
+            
+            return false;
         }
     }
 } 

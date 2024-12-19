@@ -1,0 +1,74 @@
+# Copyright (C) 2024 CZL Express
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: CZL Express for WooCommerce 1.0.0\n"
+"Report-Msgid-Bugs-To: https://exp.czl.net\n"
+"POT-Creation-Date: 2024-01-01 00:00:00+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2024-MO-DA HO:MI+ZONE\n"
+"Last-Translator: CZL Express\n"
+"Language-Team: CZL Express\n"
+
+#: woocommerce-czlexpress.php:89
+msgid "CZL Express requires WooCommerce to be installed and active"
+msgstr ""
+
+#: woocommerce-czlexpress.php:98
+msgid "CZL Express requires WooCommerce 6.0.0 or higher"
+msgstr ""
+
+#: woocommerce-czlexpress.php:142
+msgctxt "Order status"
+msgid "In Transit"
+msgstr ""
+
+#: woocommerce-czlexpress.php:187
+msgid "Creating shipment..."
+msgstr ""
+
+#: woocommerce-czlexpress.php:188
+msgid "Shipment created successfully"
+msgstr ""
+
+#: woocommerce-czlexpress.php:189
+msgid "Failed to create shipment"
+msgstr ""
+
+#: woocommerce-czlexpress.php:199
+msgid "Permission denied"
+msgstr ""
+
+#: woocommerce-czlexpress.php:203
+msgid "Invalid order ID"
+msgstr ""
+
+#: woocommerce-czlexpress.php:247
+msgid "Invalid parameters"
+msgstr ""
+
+#: woocommerce-czlexpress.php:255
+msgid "Database update failed"
+msgstr ""
+
+#: woocommerce-czlexpress.php:268
+msgid "Tracking number updated to: %s"
+msgstr ""
+
+#: woocommerce-czlexpress.php:289
+msgid "Insufficient permissions"
+msgstr ""
+
+#: woocommerce-czlexpress.php:293
+msgid "Invalid order ID"
+msgstr ""
+
+#: woocommerce-czlexpress.php:297
+msgid "Update scheduled"
+msgstr ""
+
+#: woocommerce-czlexpress.php:341
+msgid "Every 30 minutes"
+msgstr "" 

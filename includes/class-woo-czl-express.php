@@ -17,8 +17,8 @@ class WooCzlExpress {
         add_action('wp_ajax_czl_test_connection', array($this, 'handle_test_connection'));
         
         // 添加自定义订单状态
-        add_action('init', array($this, 'register_custom_order_statuses'));
-        add_filter('wc_order_statuses', array($this, 'add_custom_order_statuses'));
+        add_action('init', array($this, 'register_custom_order_statuses'), 10);
+        add_filter('wc_order_statuses', array($this, 'add_custom_order_statuses'), 10);
         
         // 添加订单状态自动更新
         add_action('wp_ajax_czl_update_order_status', array($this, 'update_order_status'));
@@ -35,6 +35,12 @@ class WooCzlExpress {
         if (!wp_next_scheduled('czl_update_tracking_info')) {
             wp_schedule_event(time(), 'hourly', 'czl_update_tracking_info');
         }
+        
+        // 添加状态迁移钩子
+        add_action('init', array($this, 'migrate_order_statuses'), 20);
+        
+        // 保留批量创建功能，因为这是我们自己的订单管理页面的功能
+        add_action('wp_ajax_czl_bulk_create_shipment', array($this, 'handle_bulk_create_shipment'));
     }
     
     private function init() {
@@ -81,13 +87,6 @@ class WooCzlExpress {
         // 跟踪信息显示钩子
         add_action('woocommerce_order_details_after_order_table', array('CZL_Tracking', 'display_tracking_info'));
         add_action('woocommerce_admin_order_data_after_shipping_address', array('CZL_Tracking', 'display_admin_tracking_info'));
-        
-        // 添加订单操作
-        add_filter('woocommerce_order_actions', array($this, 'add_order_actions'), 10, 2);
-        
-        // 添加AJAX处理
-        add_action('wp_ajax_czl_create_shipment', array($this, 'handle_create_shipment'));
-        add_action('wp_ajax_czl_bulk_create_shipment', array($this, 'handle_bulk_create_shipment'));
     }
     
     public function init_shipping_method() {
@@ -364,6 +363,13 @@ class WooCzlExpress {
      * 注册自定义订单状态
      */
     public function register_custom_order_statuses() {
+        static $registered = false;
+        
+        // 防止重复注册
+        if ($registered) {
+            return;
+        }
+        
         register_post_status('wc-in_transit', array(
             'label' => _x('In Transit', 'Order status', 'woo-czl-express'),
             'public' => true,
@@ -383,18 +389,30 @@ class WooCzlExpress {
             'label_count' => _n_noop('Delivered <span class="count">(%s)</span>',
                 'Delivered <span class="count">(%s)</span>', 'woo-czl-express')
         ));
+        
+        $registered = true;
     }
     
     /**
      * 添加自定义订单状态到WooCommerce状态列表
      */
     public function add_custom_order_statuses($order_statuses) {
+        static $added = false;
+        
+        // 防止重复添加
+        if ($added) {
+            return $order_statuses;
+        }
+        
         $new_statuses = array(
             'wc-in_transit' => _x('In Transit', 'Order status', 'woo-czl-express'),
             'wc-delivered' => _x('Delivered', 'Order status', 'woo-czl-express')
         );
         
-        return array_merge($order_statuses, $new_statuses);
+        $order_statuses = array_merge($order_statuses, $new_statuses);
+        $added = true;
+        
+        return $order_statuses;
     }
     
     /**
@@ -531,89 +549,58 @@ class WooCzlExpress {
         }
     }
     
+    /**
+     * 处理批量创建运单的AJAX请求
+     */
     public function handle_bulk_create_shipment() {
-        check_ajax_referer('czl_bulk_create_shipment', 'nonce');
-        
-        if (!current_user_can('manage_woocommerce')) {
-            wp_send_json_error(array('message' => __('权限不足', 'woo-czl-express')));
-        }
-        
-        $order_ids = isset($_POST['order_ids']) ? array_map('intval', $_POST['order_ids']) : array();
-        if (empty($order_ids)) {
-            wp_send_json_error(array('message' => __('请选择订单', 'woo-czl-express')));
-        }
-        
-        $success = 0;
-        $failed = 0;
-        $failed_orders = array();
-        $czl_order = new CZL_Order();
-        
-        foreach ($order_ids as $order_id) {
-            try {
-                $order = wc_get_order($order_id);
-                if (!$order) {
-                    throw new Exception('订单不存在');
-                }
-                
-                $result = $czl_order->create_shipment($order_id);
-                
-                if (!empty($result)) {
-                    // 更新WooCommerce订单元数据
-                    $order->update_meta_data('_czl_tracking_number', $result['tracking_number']);
-                    $order->update_meta_data('_czl_order_id', $result['order_id']);
-                    
-                    // 保存子单号
-                    if (!empty($result['childList'])) {
-                        $child_numbers = array_map(function($child) {
-                            return $child['child_number'];
-                        }, $result['childList']);
-                        $order->update_meta_data('_czl_child_numbers', $child_numbers);
-                    }
-                    
-                    // 添加订单备注
-                    $order->add_order_note(
-                        sprintf(
-                            __('CZL Express运单创建成功。运单号: %s', 'woo-czl-express'),
-                            $result['tracking_number']
-                        ),
-                        true
-                    );
-                    
-                    // 更新订单状态为运输中
-                    $order->update_status('shipping', __('运单已创建，包裹开始运输', 'woo-czl-express'));
-                    
-                    // 保存更改
-                    $order->save();
-                    
-                    $success++;
-                } else {
-                    throw new Exception('运单创建失败');
-                }
-                
-            } catch (Exception $e) {
-                error_log('CZL Express Error: Failed to create shipment for order ' . $order_id . ' - ' . $e->getMessage());
-                if (isset($order)) {
-                    $order->add_order_note(
-                        sprintf(
-                            __('CZL Express运单创建失败: %s', 'woo-czl-express'),
-                            $e->getMessage()
-                        ),
-                        true
-                    );
-                }
-                $failed++;
-                $failed_orders[] = $order_id;
+        try {
+            // 验证nonce
+            check_ajax_referer('czl_bulk_create_shipment', 'nonce');
+            
+            if (!current_user_can('manage_woocommerce')) {
+                throw new Exception(__('权限不足', 'woo-czl-express'));
             }
+            
+            // 获取订单ID
+            $order_ids = isset($_POST['order_ids']) ? array_map('intval', (array)$_POST['order_ids']) : array();
+            if (empty($order_ids)) {
+                throw new Exception(__('请选择订单', 'woo-czl-express'));
+            }
+            
+            $success = 0;
+            $failed = 0;
+            $failed_orders = array();
+            $czl_order = new CZL_Order();
+            
+            foreach ($order_ids as $order_id) {
+                try {
+                    $result = $czl_order->create_shipment($order_id);
+                    if (!empty($result)) {
+                        $success++;
+                    } else {
+                        throw new Exception('运单创建失败');
+                    }
+                } catch (Exception $e) {
+                    $failed++;
+                    $failed_orders[] = $order_id;
+                    error_log('CZL Express Error: Failed to create shipment for order ' . $order_id . ' - ' . $e->getMessage());
+                }
+            }
+            
+            wp_send_json_success(array(
+                'message' => sprintf(
+                    __('处理完成。成功：%d，失败：%d', 'woo-czl-express'),
+                    $success,
+                    $failed
+                ),
+                'failed_orders' => $failed_orders
+            ));
+            
+        } catch (Exception $e) {
+            wp_send_json_error(array(
+                'message' => $e->getMessage()
+            ));
         }
-        
-        wp_send_json_success(array(
-            'message' => sprintf(
-                __('处理完成。成功：%d，失败：%d', 'woo-czl-express'),
-                $success,
-                $failed
-            ),
-            'failed_orders' => $failed_orders
-        ));
     }
     
     /**
@@ -627,5 +614,23 @@ class WooCzlExpress {
         
         // 加载订单列表页面模板
         require_once WOO_CZL_EXPRESS_PATH . 'admin/views/orders.php';
+    }
+    
+    /**
+     * 迁移旧的订单状态到新的状态
+     */
+    public function migrate_order_statuses() {
+        global $wpdb;
+        
+        // 从 'shipping' 迁移到 'in_transit'
+        $wpdb->query("
+            UPDATE {$wpdb->posts} 
+            SET post_status = 'wc-in_transit' 
+            WHERE post_status = 'wc-shipping' 
+            AND post_type = 'shop_order'
+        ");
+        
+        // 清除订单缓存
+        wc_delete_shop_order_transients();
     }
 } 
