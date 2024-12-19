@@ -254,31 +254,13 @@ class CZL_Rate_Calculator {
             $all_rates = array(); // 存储所有线路
             
             foreach ($api_rates as $rate) {
-                $product_name = $rate['product_name'];
-                $group_found = false;
+                $product_name = isset($rate['product_name']) ? $rate['product_name'] : '';
+                $product_id = isset($rate['product_id']) ? $rate['product_id'] : '';
+                $delivery_time = isset($rate['product_aging']) ? $rate['product_aging'] : '';
+                $amount = isset($rate['total_amount']) ? floatval($rate['total_amount']) : 0;
                 
                 // 调整运费
-                $adjusted_amount = $this->adjust_shipping_rate(floatval($rate['total_amount']));
-                
-                // 添加单独的线路选项
-                $rate_id = sanitize_title($product_name);
-                $all_rates[$rate_id] = array(
-                    'id' => 'czl_express_' . $rate_id,
-                    'label' => sprintf(
-                        '%s (%s)',
-                        $product_name,
-                        $this->translate_delivery_time($rate['product_aging'])
-                    ),
-                    'cost' => $this->convert_currency($adjusted_amount),
-                    'calc_tax' => 'per_order',
-                    'meta_data' => array(
-                        'product_id' => $rate['product_id'],
-                        'delivery_time' => $rate['product_aging'],
-                        'is_group' => false,
-                        'original_amount' => $rate['total_amount'],
-                        'adjusted_amount' => $adjusted_amount
-                    )
-                );
+                $adjusted_amount = $this->adjust_shipping_rate($amount);
                 
                 // 查找匹配的分组
                 foreach ($this->product_groups as $group_key => $group) {
@@ -286,41 +268,49 @@ class CZL_Rate_Calculator {
                         if (strpos($product_name, $prefix) === 0) {
                             $group_id = sanitize_title($group['groupName']);
                             if (!isset($grouped_rates[$group_id]) || 
-                                $rate['total_amount'] < $grouped_rates[$group_id]['meta_data']['original_amount']) {
+                                $amount < $grouped_rates[$group_id]['meta_data']['original_amount']) {
+                                
+                                // 构建分组运费数据
                                 $grouped_rates[$group_id] = array(
-                                    'id' => 'czl_express_group_' . $group_id,
-                                    'label' => sprintf(
+                                    'product_id' => $product_id,
+                                    'method_title' => sprintf(
                                         '%s (%s)',
                                         $group['groupName'],
-                                        $this->translate_delivery_time($rate['product_aging'])
+                                        $this->translate_delivery_time($delivery_time)
                                     ),
-                                    'cost' => $this->convert_currency(floatval($rate['total_amount'])),
-                                    'calc_tax' => 'per_order',
-                                    'meta_data' => array(
-                                        'product_id' => $rate['product_id'],
-                                        'delivery_time' => $rate['product_aging'],
-                                        'original_name' => $product_name,
-                                        'is_group' => true,
-                                        'group_name' => $group['groupName'],
-                                        'original_amount' => $rate['total_amount']
-                                    )
+                                    'cost' => $this->convert_currency($adjusted_amount),
+                                    'delivery_time' => $delivery_time,
+                                    'original_name' => $product_name,
+                                    'is_group' => true,
+                                    'group_name' => $group['groupName'],
+                                    'original_amount' => $amount
                                 );
                             }
-                            $group_found = true;
                             break;
                         }
                     }
-                    if ($group_found) break;
                 }
+                
+                // 构建单独线路运费数据
+                $all_rates[] = array(
+                    'product_id' => $product_id,
+                    'method_title' => sprintf(
+                        '%s (%s)',
+                        $product_name,
+                        $this->translate_delivery_time($delivery_time)
+                    ),
+                    'cost' => $this->convert_currency($adjusted_amount),
+                    'delivery_time' => $delivery_time,
+                    'original_name' => $product_name,
+                    'is_group' => false,
+                    'group_name' => '',
+                    'original_amount' => $amount
+                );
             }
             
             // 根据设置决定返回分组还是所有线路
             $show_all_rates = get_option('czl_show_all_rates', 'no');
-            if ($show_all_rates === 'yes') {
-                return array_values($all_rates);
-            } else {
-                return array_values($grouped_rates);
-            }
+            return $show_all_rates === 'yes' ? array_values($all_rates) : array_values($grouped_rates);
             
         } catch (Exception $e) {
             error_log('CZL Express Error: ' . $e->getMessage());
@@ -338,23 +328,36 @@ class CZL_Rate_Calculator {
             return $delivery_time;
         }
         
-        // 匹配中文时效格式
+        // 匹配各种中文时效格式并转换为英文
+        
+        // 匹配"XX-XX个工作日"格式
         if (preg_match('/(\d+)-(\d+)个工作日/', $delivery_time, $matches)) {
             return sprintf('%d-%d working days', $matches[1], $matches[2]);
         }
         
+        // 匹配"XX个工作日"格式
         if (preg_match('/(\d+)个工作日/', $delivery_time, $matches)) {
             return sprintf('%d working days', $matches[1]);
         }
         
-        // 匹配"预计XX天左右"的格式
+        // 匹配"预计XX天左右"格式
         if (preg_match('/预计(\d+)天左右/', $delivery_time, $matches)) {
             return sprintf('About %d days', $matches[1]);
         }
         
-        // 匹配"预计XX-XX天"的格式
+        // 匹配"预计XX-XX天"格式
         if (preg_match('/预计(\d+)-(\d+)天/', $delivery_time, $matches)) {
             return sprintf('About %d-%d days', $matches[1], $matches[2]);
+        }
+        
+        // 匹配"XX-XX天"格式
+        if (preg_match('/(\d+)-(\d+)天/', $delivery_time, $matches)) {
+            return sprintf('%d-%d days', $matches[1], $matches[2]);
+        }
+        
+        // 匹配"XX天"格式
+        if (preg_match('/(\d+)天/', $delivery_time, $matches)) {
+            return sprintf('%d days', $matches[1]);
         }
         
         // 其他常见格式的翻译
@@ -363,16 +366,24 @@ class CZL_Rate_Calculator {
             '次日送达' => 'Next day delivery',
             '隔日送达' => 'Second day delivery',
             '工作日' => 'working days',
-            '左右' => 'about'
+            '左右' => 'about',
+            '预计' => 'About',
+            '快速' => 'Express',
+            '标准' => 'Standard'
         );
         
+        $translated = $delivery_time;
         foreach ($translations as $cn => $en) {
-            if (strpos($delivery_time, $cn) !== false) {
-                return $en;
-            }
+            $translated = str_replace($cn, $en, $translated);
         }
         
-        // 如果没有匹配到任何格式，返回原始值
-        return $delivery_time;
+        // 如果经过翻译后与原文相同，说明没有匹配到任何规则
+        if ($translated === $delivery_time) {
+            // 添加调试日志
+            error_log('CZL Express: Unable to translate delivery time - ' . $delivery_time);
+            return $delivery_time;
+        }
+        
+        return $translated;
     }
 } 

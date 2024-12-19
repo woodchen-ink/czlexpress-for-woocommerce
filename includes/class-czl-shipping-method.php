@@ -107,15 +107,18 @@ class WC_CZL_Shipping_Method extends WC_Shipping_Method {
         try {
             error_log('CZL Express: Starting shipping calculation');
             
-            $rates = $this->calculator->calculate_shipping_rate($package);
+            $calculator = new CZL_Rate_Calculator();
+            $rates = $calculator->calculate_shipping_rate($package);
             
             if (!empty($rates)) {
                 foreach ($rates as $rate) {
-                    $rate_id = $this->id . '_' . $rate['product_id'];
+                    $rate_id = $this->id . '_' . (isset($rate['product_id']) ? $rate['product_id'] : uniqid());
+                    
                     $this->add_rate(array(
                         'id' => $rate_id,
                         'label' => $rate['method_title'],
                         'cost' => $rate['cost'],
+                        'calc_tax' => 'per_order',
                         'meta_data' => array(
                             'product_id' => $rate['product_id'],
                             'delivery_time' => $rate['delivery_time'],
@@ -126,14 +129,14 @@ class WC_CZL_Shipping_Method extends WC_Shipping_Method {
                         )
                     ));
                 }
+                
                 error_log('CZL Express: Added ' . count($rates) . ' shipping rates');
             } else {
-                error_log('CZL Express: No shipping rates returned');
+                error_log('CZL Express: No shipping rates available');
             }
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: ' . $e->getMessage());
-            wc_add_notice($e->getMessage(), 'error');
+            error_log('CZL Express Error: Failed to calculate shipping - ' . $e->getMessage());
         }
     }
     

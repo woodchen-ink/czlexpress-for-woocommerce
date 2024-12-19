@@ -10,41 +10,56 @@ class CZL_Order_Handler {
      * 创建运单
      */
     public function create_shipment($order_id) {
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return;
+        }
+        
+        // 检查是否已创建运单
+        $tracking_number = get_post_meta($order_id, '_czl_tracking_number', true);
+        if ($tracking_number) {
+            return;
+        }
+        
+        // 检查是否使用CZL Express配送
+        if (!$this->is_czl_shipping($order)) {
+            return;
+        }
+        
         try {
-            $order = wc_get_order($order_id);
-            if (!$order) {
-                return;
+            // 准备订单数据
+            $order_data = new CZL_Order_Data($order);
+            $data = $order_data->prepare();
+            
+            // 调用API创建运单
+            $response = $this->api->create_order($data);
+            
+            if (!empty($response['order_id']) && !empty($response['tracking_number'])) {
+                // 保存运单信息
+                update_post_meta($order_id, '_czl_order_id', $response['order_id']);
+                update_post_meta($order_id, '_czl_tracking_number', $response['tracking_number']);
+                
+                // 添加订单备注
+                $note = sprintf(
+                    __('CZL Express运单创建成功。运单号: %s', 'woo-czl-express'),
+                    $response['tracking_number']
+                );
+                $order->add_order_note($note);
+                
+                // 获取并保存运单标签URL
+                $label_url = $this->api->get_label($response['order_id']);
+                if ($label_url) {
+                    update_post_meta($order_id, '_czl_label_url', $label_url);
+                }
             }
-            
-            // 检查是否已创建运单
-            $tracking_number = get_post_meta($order_id, '_czl_tracking_number', true);
-            if ($tracking_number) {
-                return;
-            }
-            
-            // 检查是否使用CZL Express配送
-            if (!$this->is_czl_shipping($order)) {
-                return;
-            }
-            
-            // 使用统一的CZL_Order类创建运单
-            $czl_order = new CZL_Order();
-            $result = $czl_order->create_shipment($order_id);
-            
-            return $result;
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: ' . $e->getMessage());
-            if (isset($order)) {
-                $order->add_order_note(
-                    sprintf(
-                        __('CZL Express运单创建失败: %s', 'woo-czl-express'),
-                        $e->getMessage()
-                    ),
-                    true
-                );
-            }
-            throw $e;
+            $error_message = sprintf(
+                __('CZL Express运单创建失败: %s', 'woo-czl-express'),
+                $e->getMessage()
+            );
+            $order->add_order_note($error_message);
+            error_log('CZL Express Error: ' . $error_message);
         }
     }
     

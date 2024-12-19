@@ -108,14 +108,22 @@ class WooCzlExpress {
             __('CZL Express', 'woo-czl-express'),
             __('CZL Express', 'woo-czl-express'),
             'manage_woocommerce',
-            'czl-express',
+            'woo-czl-express',
             array($this, 'render_settings_page'),
             'dashicons-airplane'
         );
         
-        // 添加订单管理子菜单
         add_submenu_page(
-            'czl-express',
+            'woo-czl-express',
+            __('基本设置', 'woo-czl-express'),
+            __('基本设置', 'woo-czl-express'),
+            'manage_woocommerce',
+            'woo-czl-express',
+            array($this, 'render_settings_page')
+        );
+        
+        add_submenu_page(
+            'woo-czl-express',
             __('订单管理', 'woo-czl-express'),
             __('订单管理', 'woo-czl-express'),
             'manage_woocommerce',
@@ -124,15 +132,7 @@ class WooCzlExpress {
         );
         
         add_submenu_page(
-            'czl-express',
-            __('基本设置', 'woo-czl-express'),
-            __('基本设置', 'woo-czl-express'),
-            'manage_options',
-            'czl-express'
-        );
-        
-        add_submenu_page(
-            'czl-express',
+            'woo-czl-express',
             __('产品分组', 'woo-czl-express'),
             __('产品分组', 'woo-czl-express'),
             'manage_options',
@@ -141,7 +141,7 @@ class WooCzlExpress {
         );
         
         add_submenu_page(
-            'czl-express',
+            'woo-czl-express',
             __('汇率设置', 'woo-czl-express'),
             __('汇率设置', 'woo-czl-express'),
             'manage_options',
@@ -364,24 +364,24 @@ class WooCzlExpress {
      * 注册自定义订单状态
      */
     public function register_custom_order_statuses() {
-        register_post_status('wc-shipping', array(
-            'label' => __('运输中', 'woo-czl-express'),
+        register_post_status('wc-in_transit', array(
+            'label' => _x('In Transit', 'Order status', 'woo-czl-express'),
             'public' => true,
-            'show_in_admin_status_list' => true,
-            'show_in_admin_all_list' => true,
             'exclude_from_search' => false,
-            'label_count' => _n_noop('运输中 <span class="count">(%s)</span>',
-                '运输中 <span class="count">(%s)</span>', 'woo-czl-express')
+            'show_in_admin_all_list' => true,
+            'show_in_admin_status_list' => true,
+            'label_count' => _n_noop('In Transit <span class="count">(%s)</span>',
+                'In Transit <span class="count">(%s)</span>', 'woo-czl-express')
         ));
         
         register_post_status('wc-delivered', array(
-            'label' => __('已送达', 'woo-czl-express'),
+            'label' => _x('Delivered', 'Order status', 'woo-czl-express'),
             'public' => true,
-            'show_in_admin_status_list' => true,
-            'show_in_admin_all_list' => true,
             'exclude_from_search' => false,
-            'label_count' => _n_noop('已送达 <span class="count">(%s)</span>',
-                '已送达 <span class="count">(%s)</span>', 'woo-czl-express')
+            'show_in_admin_all_list' => true,
+            'show_in_admin_status_list' => true,
+            'label_count' => _n_noop('Delivered <span class="count">(%s)</span>',
+                'Delivered <span class="count">(%s)</span>', 'woo-czl-express')
         ));
     }
     
@@ -390,8 +390,8 @@ class WooCzlExpress {
      */
     public function add_custom_order_statuses($order_statuses) {
         $new_statuses = array(
-            'wc-shipping' => __('运输中', 'woo-czl-express'),
-            'wc-delivered' => __('已送达', 'woo-czl-express')
+            'wc-in_transit' => _x('In Transit', 'Order status', 'woo-czl-express'),
+            'wc-delivered' => _x('Delivered', 'Order status', 'woo-czl-express')
         );
         
         return array_merge($order_statuses, $new_statuses);

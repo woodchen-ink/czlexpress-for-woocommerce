@@ -420,73 +420,106 @@ class CZL_API {
         }
     }
     
-    public function create_shipment($data) {
+    private function make_request($url, $data = array(), $method = 'POST') {
         try {
-            error_log('CZL Express: Starting create shipment');
+            $ch = curl_init();
             
-            // 确保已登录
-            $this->ensure_logged_in();
-            
-            // 使用类属性中的认证信息
-            $data['customer_id'] = $this->customer_id;
-            $data['customer_userid'] = $this->customer_userid;
-            
-            $api_url = 'https://tms.czl.net/createOrderApi.htm';
-            
-            // 构建请求数据
-            $request_data = array(
-                'param' => json_encode($data, JSON_UNESCAPED_UNICODE)
+            $curl_options = array(
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HEADER => false,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_TIMEOUT => 60,        // 增加超时时间到60秒
+                CURLOPT_CONNECTTIMEOUT => 30, // 连接超时时间30秒
+                CURLOPT_VERBOSE => true,      // 启用详细日志
+                CURLOPT_HTTPHEADER => array(
+                    'Accept: */*',
+                    'Accept-Language: zh-cn',
+                    'Cache-Control: no-cache',
+                    'Content-Type: application/x-www-form-urlencoded;charset=UTF-8'
+                )
             );
             
-            error_log('CZL Express: Create shipment request data - ' . print_r($request_data, true));
+            if ($method === 'POST') {
+                $curl_options[CURLOPT_POST] = true;
+                if (!empty($data)) {
+                    // 确保数据正确编码
+                    $post_data = is_array($data) ? http_build_query($data) : $data;
+                    $curl_options[CURLOPT_POSTFIELDS] = $post_data;
+                }
+            }
             
-            $ch = curl_init($api_url);
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($request_data));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                'Accept-Language: zh-cn',
-                'Connection: Keep-Alive',
-                'Cache-Control: no-cache',
-                'Content-Type: application/x-www-form-urlencoded;charset=UTF-8'
-            ));
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt_array($ch, $curl_options);
             
-            // 添加更多调试信息
-            curl_setopt($ch, CURLOPT_VERBOSE, true);
+            // 捕获详细日志
             $verbose = fopen('php://temp', 'w+');
             curl_setopt($ch, CURLOPT_STDERR, $verbose);
             
             $response = curl_exec($ch);
+            $error = curl_error($ch);
+            $errno = curl_errno($ch);
             
-            // 记录详细的curl信息
-            if (curl_errno($ch)) {
-                rewind($verbose);
-                $verboseLog = stream_get_contents($verbose);
-                error_log('CZL Express: Curl verbose log - ' . $verboseLog);
-                error_log('CZL Express: Curl error - ' . curl_error($ch));
-                throw new Exception('请求失败: ' . curl_error($ch));
-            }
-            
-            error_log('CZL Express: Create shipment raw response - ' . $response);
-            error_log('CZL Express: Response info - ' . print_r(curl_getinfo($ch), true));
-            
-            curl_close($ch);
+            // 记录详细日志
+            rewind($verbose);
+            $verbose_log = stream_get_contents($verbose);
+            error_log('CZL Express: Curl verbose log - ' . $verbose_log);
             fclose($verbose);
             
-            // 检查响应是否为空
-            if (empty($response)) {
-                throw new Exception('服务器未返回数据');
+            if ($errno) {
+                error_log('CZL Express: Curl error - ' . $error);
+                throw new Exception('请求失败: ' . $error);
             }
             
-            // 解析响应
+            if ($response === false) {
+                throw new Exception('请求失败');
+            }
+            
+            error_log('CZL Express: Raw response - ' . $response);
+            
             $result = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 error_log('CZL Express: JSON decode error - ' . json_last_error_msg());
                 throw new Exception('响应数据格式错误');
             }
             
-            error_log('CZL Express: Create shipment decoded response - ' . print_r($result, true));
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log('CZL Express Error: Request failed - ' . $e->getMessage());
+            throw $e;
+        } finally {
+            if (isset($ch)) {
+                curl_close($ch);
+            }
+        }
+    }
+    
+    public function create_shipment($data) {
+        try {
+            error_log('CZL Express: Starting create shipment');
+            
+            // 确保已认证
+            $this->ensure_logged_in();
+            
+            // 添加认证信息
+            $data['customer_id'] = $this->customer_id;
+            $data['customer_userid'] = $this->customer_userid;
+            
+            // 准备请求数据
+            $request_data = array(
+                'param' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            );
+            
+            error_log('CZL Express: Create shipment request data - ' . print_r($request_data, true));
+            
+            // 修改这里：使用完整的URL
+            $api_url = 'https://tms.czl.net/createOrderApi.htm';  // 使用完整URL
+            
+            // 发送请求
+            $result = $this->make_request($api_url, $request_data);
+            
+            error_log('CZL Express: Create shipment response - ' . print_r($result, true));
             
             if (!isset($result['ack']) || $result['ack'] !== 'true') {
                 $error_msg = isset($result['message']) ? urldecode($result['message']) : '未知错误';

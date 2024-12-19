@@ -62,4 +62,17 @@ function woo_czl_express_init() {
 
 add_action('plugins_loaded', 'woo_czl_express_init');
 
-add_action('woocommerce_order_status_processing', array('CZL_Order', 'create_shipment'));
+add_action('woocommerce_order_status_processing', function($order_id) {
+    $czl_order = new CZL_Order();
+    $czl_order->create_shipment($order_id);
+});
+
+// 在插件停用时清理定时任务
+register_deactivation_hook(__FILE__, 'wc_czlexpress_deactivate');
+
+function wc_czlexpress_deactivate() {
+    $timestamp = wp_next_scheduled('czl_update_tracking_cron');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'czl_update_tracking_cron');
+    }
+}

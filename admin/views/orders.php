@@ -47,7 +47,6 @@ $orders = $orders_query->get_orders();
             $tracking_number = $order->get_meta('_czl_tracking_number');
             $czl_order_id = $order->get_meta('_czl_order_id');
             $reference_number = $order->get_meta('_czl_reference_number');
-            $label_url = $order->get_meta('_czl_label_url');
             
             $shipping_methods = $order->get_shipping_methods();
             $shipping_method = current($shipping_methods);
@@ -78,19 +77,19 @@ $orders = $orders_query->get_orders();
                         <strong><?php _e('CZL订单号:', 'woo-czl-express'); ?></strong> 
                         <?php echo esc_html($czl_order_id); ?><br>
                         <strong><?php _e('参考号:', 'woo-czl-express'); ?></strong> 
-                        <?php echo esc_html($reference_number); ?><br>
-                        <?php if ($label_url): ?>
-                            <a href="<?php echo esc_url($label_url); ?>" target="_blank" class="button">
-                                <?php _e('打印标签', 'woo-czl-express'); ?>
-                            </a>
-                        <?php endif; ?>
+                        <?php echo esc_html($reference_number); ?>
                     <?php else: ?>
                         <?php _e('未创建运单', 'woo-czl-express'); ?>
                     <?php endif; ?>
                 </td>
                 <td>
-                    <?php if (!$tracking_number): ?>
-                        <button class="button create-shipment" data-order-id="<?php echo esc_attr($order->get_id()); ?>">
+                    <?php if (!empty($tracking_number)): ?>
+                        <button type="button" class="button" onclick="printLabel(<?php echo $order->get_id(); ?>)">
+                            <?php _e('打印标签', 'woo-czl-express'); ?>
+                        </button>
+                    <?php endif; ?>
+                    <?php if (empty($tracking_number)): ?>
+                        <button type="button" class="button" onclick="createShipment(<?php echo $order->get_id(); ?>)">
                             <?php _e('创建运单', 'woo-czl-express'); ?>
                         </button>
                     <?php endif; ?>
@@ -183,4 +182,28 @@ jQuery(document).ready(function($) {
         });
     });
 });
+
+// 打印标签功能
+function printLabel(orderId) {
+    jQuery.ajax({
+        url: ajaxurl,
+        type: 'POST',
+        data: {
+            action: 'czl_print_label',
+            order_id: orderId,
+            security: '<?php echo wp_create_nonce("czl-print-label"); ?>'
+        },
+        success: function(response) {
+            if (response.success && response.data.url) {
+                // 在新窗口打开标签
+                window.open(response.data.url, '_blank');
+            } else {
+                alert(response.data.message || '获取标签失败');
+            }
+        },
+        error: function() {
+            alert('请求失败，请重试');
+        }
+    });
+}
 </script> 
