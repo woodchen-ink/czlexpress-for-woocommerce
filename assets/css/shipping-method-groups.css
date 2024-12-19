@@ -1,0 +1,30 @@
+.shipping-method-group .toggle-sub-methods {
+    cursor: pointer;
+    margin-left: 5px;
+    color: #666;
+}
+
+.shipping-method-group .sub-methods {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8f8f8;
+    border-radius: 4px;
+}
+
+.shipping-method-group .sub-methods-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.shipping-method-group .sub-methods-table th,
+.shipping-method-group .sub-methods-table td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.shipping-method-group .remote-fee-notice {
+    font-size: 0.9em;
+    color: #e2401c;
+    margin-top: 5px;
+} 
