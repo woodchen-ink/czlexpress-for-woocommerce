@@ -1,4 +1,6 @@
-# woocommerce-czlexpress
+# CZL Express for WooCommerce
+
+CZL Express shipping integration for WooCommerce. Provides real-time shipping rates, shipment creation, and package tracking.
 
 ## 描述
 

@@ -1,0 +1,120 @@
+# Copyright (C) 2024 CZL Express
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: CZL Express for WooCommerce 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/czlexpress-for-woocommerce\n"
+"Last-Translator: woodchen <woodchen@czl.net>\n"
+"Language-Team: woodchen <woodchen@czl.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2024-12-20T10:00:00+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.8.1\n"
+"X-Domain: czlexpress-for-woocommerce\n"
+
+#. Plugin Name of the plugin
+msgid "CZL Express for WooCommerce"
+msgstr ""
+
+#. Plugin URI of the plugin
+msgid "https://exp.czl.net"
+msgstr ""
+
+#. Description of the plugin
+msgid "CZL Express shipping integration for WooCommerce. Provides real-time shipping rates, shipment creation, and package tracking for CZL Express delivery service."
+msgstr ""
+
+#. Author of the plugin
+msgid "CZL Express"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://exp.czl.net"
+msgstr ""
+
+#: czlexpress-for-woocommerce.php:89
+msgid "CZL Express requires WooCommerce to be installed and active"
+msgstr ""
+
+#: czlexpress-for-woocommerce.php:99
+msgid "CZL Express requires WooCommerce 6.0.0 or higher"
+msgstr ""
+
+#: includes/class-czlexpress.php:123
+msgid "Settings"
+msgstr ""
+
+#: includes/class-czlexpress.php:124
+msgid "Documentation"
+msgstr ""
+
+#: includes/class-czlexpress.php:125
+msgid "Support"
+msgstr ""
+
+#: includes/class-czl-order.php:156
+msgid "Package created successfully"
+msgstr ""
+
+#: includes/class-czl-order.php:158
+msgid "Failed to create package"
+msgstr ""
+
+#: includes/class-czl-order.php:187
+msgid "Tracking information updated successfully"
+msgstr ""
+
+#: includes/class-czl-order.php:189
+msgid "Failed to update tracking information"
+msgstr ""
+
+#: includes/class-czl-order.php:234
+msgctxt "Order status"
+msgid "In Transit"
+msgstr ""
+
+#: includes/class-czl-settings.php:45
+msgid "CZL Express API Settings"
+msgstr ""
+
+#: includes/class-czl-settings.php:52
+msgid "Enable/Disable"
+msgstr ""
+
+#: includes/class-czl-settings.php:54
+msgid "Enable this shipping method"
+msgstr ""
+
+#: includes/class-czl-settings.php:58
+msgid "API Key"
+msgstr ""
+
+#: includes/class-czl-settings.php:60
+msgid "Enter your CZL Express API key"
+msgstr ""
+
+#: includes/class-czl-settings.php:64
+msgid "API Secret"
+msgstr ""
+
+#: includes/class-czl-settings.php:66
+msgid "Enter your CZL Express API secret"
+msgstr ""
+
+#: includes/class-czl-settings.php:70
+msgid "Test Mode"
+msgstr ""
+
+#: includes/class-czl-settings.php:72
+msgid "Enable test mode"
+msgstr ""
+
+#: includes/class-czl-settings.php:76
+msgid "Debug Log"
+msgstr ""
+
+#: includes/class-czl-settings.php:78
+msgid "Enable logging"
+msgstr "" 

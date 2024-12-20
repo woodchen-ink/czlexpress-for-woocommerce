@@ -23,8 +23,8 @@ foreach ($supported_currencies as $code => $name) {
     
     <div class="czl-page-description">
         <p>
-            <?php _e('在这里设置人民币(CNY)与其他货币的汇率。运费将根据这些汇率自动转换。', 'woo-czl-express'); ?>
-            <?php printf(__('当前商店使用的货币是: %s', 'woo-czl-express'), '<strong>' . $current_currency . '</strong>'); ?>
+            <?php _e('在这里设置人民币(CNY)与其他货币的汇率。运费将根据这些汇率自动转换。', 'czlexpress-for-woocommerce'); ?>
+            <?php printf(__('当前商店使用的货币是: %s', 'czlexpress-for-woocommerce'), '<strong>' . $current_currency . '</strong>'); ?>
         </p>
     </div>
     
@@ -35,9 +35,9 @@ foreach ($supported_currencies as $code => $name) {
             <table class="widefat czl-exchange-rates" id="czl-exchange-rates">
                 <thead>
                     <tr>
-                        <th class="column-currency"><?php _e('货币', 'woo-czl-express'); ?></th>
-                        <th class="column-rate"><?php _e('汇率 (1 CNY =)', 'woo-czl-express'); ?></th>
-                        <th class="column-actions"><?php _e('操作', 'woo-czl-express'); ?></th>
+                        <th class="column-currency"><?php _e('货币', 'czlexpress-for-woocommerce'); ?></th>
+                        <th class="column-rate"><?php _e('汇率 (1 CNY =)', 'czlexpress-for-woocommerce'); ?></th>
+                        <th class="column-actions"><?php _e('操作', 'czlexpress-for-woocommerce'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,7 +66,7 @@ foreach ($supported_currencies as $code => $name) {
                                        value="<?php echo esc_attr($rate); ?>" step="0.000001" min="0" class="regular-text">
                             </td>
                             <td class="column-actions">
-                                <button type="button" class="button remove-rate" title="<?php esc_attr_e('删除此汇率', 'woo-czl-express'); ?>">
+                                <button type="button" class="button remove-rate" title="<?php esc_attr_e('删除此汇率', 'czlexpress-for-woocommerce'); ?>">
                                     <span class="dashicons dashicons-trash"></span>
                                 </button>
                             </td>
@@ -79,7 +79,7 @@ foreach ($supported_currencies as $code => $name) {
                         <td colspan="3">
                             <button type="button" class="button add-rate">
                                 <span class="dashicons dashicons-plus-alt2"></span>
-                                <?php _e('添加汇率', 'woo-czl-express'); ?>
+                                <?php _e('添加汇率', 'czlexpress-for-woocommerce'); ?>
                             </button>
                         </td>
                     </tr>
@@ -87,7 +87,7 @@ foreach ($supported_currencies as $code => $name) {
             </table>
         </div>
         
-        <?php submit_button(__('保存汇率设置', 'woo-czl-express')); ?>
+        <?php submit_button(__('保存汇率设置', 'czlexpress-for-woocommerce')); ?>
     </form>
 </div>
 
@@ -113,7 +113,7 @@ foreach ($supported_currencies as $code => $name) {
             <input type="number" name="rates[{{index}}][rate]" value="" step="0.000001" min="0" class="regular-text">
         </td>
         <td class="column-actions">
-            <button type="button" class="button remove-rate" title="<?php esc_attr_e('删除此汇率', 'woo-czl-express'); ?>">
+            <button type="button" class="button remove-rate" title="<?php esc_attr_e('删除此汇率', 'czlexpress-for-woocommerce'); ?>">
                 <span class="dashicons dashicons-trash"></span>
             </button>
         </td>

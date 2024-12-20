@@ -20,12 +20,12 @@ class CZL_Rate_Calculator {
         // 如果没有配置，使用默认分组
         if (empty($groups)) {
             $groups = array(
-                'ups_blue' => array(
+                'ups_expedited' => array(
                     'enabled' => true,
                     'groupName' => 'UPS Expedited',
                     'prefixes' => array('UPS 蓝单')
                 ),
-                'ups_red' => array(
+                'ups_saver' => array(
                     'enabled' => true,
                     'groupName' => 'UPS Saver',
                     'prefixes' => array('UPS 红单')
@@ -47,58 +47,34 @@ class CZL_Rate_Calculator {
                 ),
                 'europe_normal' => array(
                     'enabled' => true,
-                    'groupName' => 'European and American general package tax line',
+                    'groupName' => __('Customs duty line', 'czlexpress-for-woocommerce'),
                     'prefixes' => array(
-                        '欧美经济专线(普货)',
-                        '欧美标准专线(普货)',
-                        '欧洲经济专线(普货)',
-                        '欧洲标准专线(普货)'
+                        __('欧美经济专线(普货)', 'czlexpress-for-woocommerce'),
+                        __('欧洲经济专线(普货)', 'czlexpress-for-woocommerce')
                     )
                 ),
-                'europe_b' => array(
+                'europe_fast' => array(
                     'enabled' => true,
-                    'groupName' => 'European and American B-class tax line',
+                    'groupName' => __('Fast customs duty line', 'czlexpress-for-woocommerce'),
                     'prefixes' => array(
-                        '欧美经济专线(B类)',
-                        '欧美标准专线(B类)',
-                        '欧洲经济专线(B类)',
-                        '欧洲标准专线(B类)'
+                        __('欧美标准专线(普货)', 'czlexpress-for-woocommerce'),
+                        __('欧洲标准专线(普货)', 'czlexpress-for-woocommerce')
                     )
                 ),
-                'europe_battery' => array(
+                'ems' => array(
                     'enabled' => true,
-                    'groupName' => 'European and American battery tax line',
-                    'prefixes' => array(
-                        '欧美经济专线(带电)',
-                        '欧美标准专线(带电)',
-                        '欧洲经济专线(带电)',
-                        '欧洲标准专线(带电)'
-                    )
-                ),
-                'dubai_dhl' => array(
-                    'enabled' => true,
-                    'groupName' => 'Dubai DHL',
-                    'prefixes' => array('迪拜DHL')
-                ),
-                'dubai_ups' => array(
-                    'enabled' => true,
-                    'groupName' => 'Dubai UPS',
-                    'prefixes' => array('迪拜UPS')
-                ),
-                'dubai_fedex' => array(
-                    'enabled' => true,
-                    'groupName' => 'Dubai FEDEX',
-                    'prefixes' => array('迪拜FEDEX')
-                ),
-                'post' => array(
-                    'enabled' => true,
-                    'groupName' => 'Post',
-                    'prefixes' => array('E特快', 'EMS')
+                    'groupName' => __('EMS', 'czlexpress-for-woocommerce'),
+                    'prefixes' => array(__('EMS', 'czlexpress-for-woocommerce'))
                 ),
                 'czl_uae' => array(
                     'enabled' => true,
                     'groupName' => 'CZL UAE Line',
-                    'prefixes' => array('CZL阿联酋')
+                    'prefixes' => array('CZL阿联酋经济专线')
+                ),
+                'czl_uae_fast' => array(
+                    'enabled' => true,
+                    'groupName' => 'CZL UAE Fast Line',
+                    'prefixes' => array('CZL阿联酋特快专线')
                 )
             );
             update_option('czl_product_groups', $groups);

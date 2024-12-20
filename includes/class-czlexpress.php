@@ -1,5 +1,8 @@
 <?php
-class WooCzlExpress {
+/**
+ * CZL Express 主类
+ */
+class CZLExpress {
     private static $instance = null;
     private $order_handler;
     
@@ -11,7 +14,6 @@ class WooCzlExpress {
     }
     
     public function __construct() {
-        register_activation_hook(WOO_CZL_EXPRESS_PATH . 'woo-commerce-czlexpress.php', array('CZL_Install', 'init'));
         $this->init();
         add_action('admin_init', array($this, 'register_settings'));
         add_action('wp_ajax_czl_test_connection', array($this, 'handle_test_connection'));
@@ -39,7 +41,7 @@ class WooCzlExpress {
         // 添加状态迁移钩子
         add_action('init', array($this, 'migrate_order_statuses'), 20);
         
-        // 保留批量创建功能，因为这是我们自己的订单管理页面的功能
+        // 保留批量创建功能
         add_action('wp_ajax_czl_bulk_create_shipment', array($this, 'handle_bulk_create_shipment'));
     }
     
@@ -58,17 +60,17 @@ class WooCzlExpress {
     }
     
     private function load_dependencies() {
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-api.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-rate-calculator.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-shipping-method.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-install.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-settings.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-order-handler.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-order-data.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-label.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-tracking.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-product-fields.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-order.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-api.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-rate-calculator.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-shipping-method.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-install.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-settings.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-order-handler.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-order-data.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-label.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-tracking.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-product-fields.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-order.php';
     }
     
     private function init_hooks() {
@@ -91,7 +93,7 @@ class WooCzlExpress {
     
     public function init_shipping_method() {
         if (!class_exists('WC_CZL_Shipping_Method')) {
-            require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-shipping-method.php';
+            require_once CZL_EXPRESS_PATH . 'includes/class-czl-shipping-method.php';
         }
     }
     
@@ -104,45 +106,45 @@ class WooCzlExpress {
     
     public function add_admin_menu() {
         add_menu_page(
-            __('CZL Express', 'woo-czl-express'),
-            __('CZL Express', 'woo-czl-express'),
+            esc_html__('CZL Express', 'czlexpress-for-woocommerce'),
+            esc_html__('CZL Express', 'czlexpress-for-woocommerce'),
             'manage_woocommerce',
-            'woo-czl-express',
+            'czlexpress-for-woocommerce',
             array($this, 'render_settings_page'),
             'dashicons-airplane'
         );
         
         add_submenu_page(
-            'woo-czl-express',
-            __('基本设置', 'woo-czl-express'),
-            __('基本设置', 'woo-czl-express'),
+            'czlexpress-for-woocommerce',
+            esc_html__('基本设置', 'czlexpress-for-woocommerce'),
+            esc_html__('基本设置', 'czlexpress-for-woocommerce'),
             'manage_woocommerce',
-            'woo-czl-express',
+            'czlexpress-for-woocommerce',
             array($this, 'render_settings_page')
         );
         
         add_submenu_page(
-            'woo-czl-express',
-            __('订单管理', 'woo-czl-express'),
-            __('订单管理', 'woo-czl-express'),
+            'czlexpress-for-woocommerce',
+            esc_html__('订单管理', 'czlexpress-for-woocommerce'),
+            esc_html__('订单管理', 'czlexpress-for-woocommerce'),
             'manage_woocommerce',
             'czl-express-orders',
             array($this, 'render_orders_page')
         );
         
         add_submenu_page(
-            'woo-czl-express',
-            __('产品分组', 'woo-czl-express'),
-            __('产品分组', 'woo-czl-express'),
+            'czlexpress-for-woocommerce',
+            esc_html__('产品分组', 'czlexpress-for-woocommerce'),
+            esc_html__('产品分组', 'czlexpress-for-woocommerce'),
             'manage_options',
             'czl-product-groups',
             array($this, 'render_product_groups_page')
         );
         
         add_submenu_page(
-            'woo-czl-express',
-            __('汇率设置', 'woo-czl-express'),
-            __('汇率设置', 'woo-czl-express'),
+            'czlexpress-for-woocommerce',
+            esc_html__('汇率设置', 'czlexpress-for-woocommerce'),
+            esc_html__('汇率设置', 'czlexpress-for-woocommerce'),
             'manage_options',
             'czl-exchange-rates',
             array($this, 'render_exchange_rates_page')
@@ -171,15 +173,15 @@ class WooCzlExpress {
             }
             
             update_option('czl_product_groups', $groups);
-            add_settings_error('czl_messages', 'czl_message', __('产品分组设置已保存', 'woo-czl-express'), 'updated');
+            add_settings_error('czl_messages', 'czl_message', esc_html__('产品分组设置已保存', 'czlexpress-for-woocommerce'), 'updated');
         }
         
         // 显示设置页面
-        require_once WOO_CZL_EXPRESS_PATH . 'admin/views/product-groups.php';
+        require_once CZL_EXPRESS_PATH . 'admin/views/product-groups.php';
     }
     
     public function admin_page() {
-        require_once WOO_CZL_EXPRESS_PATH . 'admin/views/admin-page.php';
+        require_once CZL_EXPRESS_PATH . 'admin/views/admin-page.php';
     }
     
     /**
@@ -190,9 +192,9 @@ class WooCzlExpress {
         $tracking_number = get_post_meta($order->get_id(), '_czl_tracking_number', true);
         
         if ($tracking_number) {
-            $actions['czl_cancel_shipment'] = __('取消CZL运单', 'woo-czl-express');
+            $actions['czl_cancel_shipment'] = esc_html__('取消CZL运单', 'czlexpress-for-woocommerce');
         } else {
-            $actions['czl_create_shipment'] = __('创建CZL运单', 'woo-czl-express');
+            $actions['czl_create_shipment'] = esc_html__('创建CZL运单', 'czlexpress-for-woocommerce');
         }
         
         return $actions;
@@ -218,7 +220,7 @@ class WooCzlExpress {
         // 添加设置分节
         add_settings_section(
             'czl_api_settings',
-            __('API设置', 'woo-czl-express'),
+            esc_html__('API设置', 'czlexpress-for-woocommerce'),
             null,
             'czl_options'
         );
@@ -226,7 +228,7 @@ class WooCzlExpress {
         // 添加设置字段
         add_settings_field(
             'czl_username',
-            __('用户名', 'woo-czl-express'),
+            esc_html__('用户名', 'czlexpress-for-woocommerce'),
             array($this, 'username_field_callback'),
             'czl_options',
             'czl_api_settings'
@@ -234,7 +236,7 @@ class WooCzlExpress {
         
         add_settings_field(
             'czl_password',
-            __('密码', 'woo-czl-express'),
+            esc_html__('密码', 'czlexpress-for-woocommerce'),
             array($this, 'password_field_callback'),
             'czl_options',
             'czl_api_settings'
@@ -243,14 +245,14 @@ class WooCzlExpress {
         // 添加运费调整设置分节
         add_settings_section(
             'czl_rate_settings',
-            __('运费设置', 'woo-czl-express'),
+            esc_html__('运费设置', 'czlexpress-for-woocommerce'),
             null,
             'czl_options'
         );
         
         add_settings_field(
             'czl_rate_adjustment',
-            __('运费调整公式', 'woo-czl-express'),
+            esc_html__('运费调整公式', 'czlexpress-for-woocommerce'),
             array($this, 'rate_adjustment_field_callback'),
             'czl_options',
             'czl_rate_settings'
@@ -272,11 +274,11 @@ class WooCzlExpress {
         ?>
         <input type="text" name="czl_rate_adjustment" value="<?php echo esc_attr($value); ?>" class="regular-text">
         <p class="description">
-            <?php _e('设置运费调整公式，支持百分比和固定金额。例如：', 'woo-czl-express'); ?><br>
+            <?php esc_html_e('设置运费调整公式，支持百分比和固定金额。例如：', 'czlexpress-for-woocommerce'); ?><br>
             - 10% + 10 (运费乘以1.1后加10)<br>
             - 20% (运费乘以1.2)<br>
             - +15 (运费加15)<br>
-            <?php _e('留空表示不调整运费', 'woo-czl-express'); ?>
+            <?php esc_html_e('留空表示不调整运费', 'czlexpress-for-woocommerce'); ?>
         </p>
         <?php
     }
@@ -289,7 +291,7 @@ class WooCzlExpress {
         
         if (empty($username) || empty($password)) {
             wp_send_json_error(array(
-                'message' => __('请先配置API账号和密码', 'woo-czl-express')
+                'message' => esc_html__('请先配置API账号和密码', 'czlexpress-for-woocommerce')
             ));
         }
         
@@ -311,11 +313,11 @@ class WooCzlExpress {
         
         if (!empty($data) && isset($data['code']) && $data['code'] == 200) {
             wp_send_json_success(array(
-                'message' => __('API连接测试成功', 'woo-czl-express')
+                'message' => esc_html__('API连接测试成功', 'czlexpress-for-woocommerce')
             ));
         } else {
             wp_send_json_error(array(
-                'message' => __('API连接测试失败，请检查账号密码是否正确', 'woo-czl-express')
+                'message' => esc_html__('API连接测试失败，请检查账号密码是否正确', 'czlexpress-for-woocommerce')
             ));
         }
     }
@@ -326,7 +328,7 @@ class WooCzlExpress {
         }
         
         // 显示设置页面
-        require_once WOO_CZL_EXPRESS_PATH . 'admin/views/settings.php';
+        require_once CZL_EXPRESS_PATH . 'admin/views/settings.php';
     }
     
     public function render_exchange_rates_page() {
@@ -352,11 +354,11 @@ class WooCzlExpress {
                 }
             }
             
-            add_settings_error('czl_messages', 'czl_message', __('汇率设置已保存', 'woo-czl-express'), 'updated');
+            add_settings_error('czl_messages', 'czl_message', esc_html__('汇率设置已保存', 'czlexpress-for-woocommerce'), 'updated');
         }
         
         // 显示设置页面
-        require_once WOO_CZL_EXPRESS_PATH . 'admin/views/exchange-rates.php';
+        require_once CZL_EXPRESS_PATH . 'admin/views/exchange-rates.php';
     }
     
     /**
@@ -371,23 +373,31 @@ class WooCzlExpress {
         }
         
         register_post_status('wc-in_transit', array(
-            'label' => _x('In Transit', 'Order status', 'woo-czl-express'),
+            'label' => _x('In Transit', 'Order status', 'czlexpress-for-woocommerce'),
             'public' => true,
             'exclude_from_search' => false,
             'show_in_admin_all_list' => true,
             'show_in_admin_status_list' => true,
-            'label_count' => _n_noop('In Transit <span class="count">(%s)</span>',
-                'In Transit <span class="count">(%s)</span>', 'woo-czl-express')
+            /* translators: %s: number of orders in transit */
+            'label_count' => _n_noop(
+                'In Transit <span class="count">(%s)</span>',
+                'In Transit <span class="count">(%s)</span>',
+                'czlexpress-for-woocommerce'
+            )
         ));
         
         register_post_status('wc-delivered', array(
-            'label' => _x('Delivered', 'Order status', 'woo-czl-express'),
+            'label' => _x('Delivered', 'Order status', 'czlexpress-for-woocommerce'),
             'public' => true,
             'exclude_from_search' => false,
             'show_in_admin_all_list' => true,
             'show_in_admin_status_list' => true,
-            'label_count' => _n_noop('Delivered <span class="count">(%s)</span>',
-                'Delivered <span class="count">(%s)</span>', 'woo-czl-express')
+            /* translators: %s: number of delivered orders */
+            'label_count' => _n_noop(
+                'Delivered <span class="count">(%s)</span>',
+                'Delivered <span class="count">(%s)</span>',
+                'czlexpress-for-woocommerce'
+            )
         ));
         
         $registered = true;
@@ -405,8 +415,8 @@ class WooCzlExpress {
         }
         
         $new_statuses = array(
-            'wc-in_transit' => _x('In Transit', 'Order status', 'woo-czl-express'),
-            'wc-delivered' => _x('Delivered', 'Order status', 'woo-czl-express')
+            'wc-in_transit' => _x('In Transit', 'Order status', 'czlexpress-for-woocommerce'),
+            'wc-delivered' => _x('Delivered', 'Order status', 'czlexpress-for-woocommerce')
         );
         
         $order_statuses = array_merge($order_statuses, $new_statuses);
@@ -430,12 +440,12 @@ class WooCzlExpress {
         }
         
         ?>
-        <h2><?php _e('物流轨迹', 'woo-czl-express'); ?></h2>
+        <h2><?php esc_html_e('物流轨迹', 'czlexpress-for-woocommerce'); ?></h2>
         <div class="czl-tracking-info">
             <p>
                 <?php 
                 printf(
-                    __('运单号: %s', 'woo-czl-express'),
+                    esc_html__('运单号: %s', 'czlexpress-for-woocommerce'),
                     '<a href="https://exp.czl.net/track/?query=' . esc_attr($tracking_number) . '" target="_blank">' . 
                     esc_html($tracking_number) . '</a>'
                 ); 
@@ -483,11 +493,11 @@ class WooCzlExpress {
         
         ?>
         <div class="czl-admin-tracking-info">
-            <h3><?php _e('CZL Express 运单信息', 'woo-czl-express'); ?></h3>
+            <h3><?php esc_html_e('CZL Express 运单信息', 'czlexpress-for-woocommerce'); ?></h3>
             <p>
                 <?php 
                 printf(
-                    __('运单号: %s', 'woo-czl-express'),
+                    esc_html__('运单号: %s', 'czlexpress-for-woocommerce'),
                     '<a href="https://exp.czl.net/track/?query=' . esc_attr($tracking_number) . '" target="_blank">' . 
                     esc_html($tracking_number) . '</a>'
                 ); 
@@ -504,13 +514,13 @@ class WooCzlExpress {
             
             // 检查权限
             if (!current_user_can('manage_woocommerce')) {
-                throw new Exception(__('权限不足', 'woo-czl-express'));
+                throw new Exception(esc_html__('权限不足', 'czlexpress-for-woocommerce'));
             }
             
             // 验证订单ID
             $order_id = isset($_POST['order_id']) ? absint($_POST['order_id']) : 0;
             if (!$order_id) {
-                throw new Exception(__('无效的订单ID', 'woo-czl-express'));
+                throw new Exception(esc_html__('无效的订单ID', 'czlexpress-for-woocommerce'));
             }
             
             // 获取WooCommerce订单对象
@@ -525,7 +535,7 @@ class WooCzlExpress {
             
             if (!empty($result['tracking_number'])) {
                 wp_send_json_success(array(
-                    'message' => __('运单创建成功', 'woo-czl-express'),
+                    'message' => esc_html__('运单创建成功', 'czlexpress-for-woocommerce'),
                     'tracking_number' => $result['tracking_number']
                 ));
             } else {
@@ -537,14 +547,14 @@ class WooCzlExpress {
             if (isset($order)) {
                 $order->add_order_note(
                     sprintf(
-                        __('CZL Express运单创建失败: %s', 'woo-czl-express'),
+                        esc_html__('CZL Express运单创建失败: %s', 'czlexpress-for-woocommerce'),
                         $e->getMessage()
                     ),
                     true
                 );
             }
             wp_send_json_error(array(
-                'message' => $e->getMessage() // 直接返回错误信息
+                'message' => $e->getMessage()
             ));
         }
     }
@@ -558,13 +568,13 @@ class WooCzlExpress {
             check_ajax_referer('czl_bulk_create_shipment', 'nonce');
             
             if (!current_user_can('manage_woocommerce')) {
-                throw new Exception(__('权限不足', 'woo-czl-express'));
+                throw new Exception(esc_html__('权限不足', 'czlexpress-for-woocommerce'));
             }
             
             // 获取订单ID
             $order_ids = isset($_POST['order_ids']) ? array_map('intval', (array)$_POST['order_ids']) : array();
             if (empty($order_ids)) {
-                throw new Exception(__('请选择订单', 'woo-czl-express'));
+                throw new Exception(esc_html__('请选择订单', 'czlexpress-for-woocommerce'));
             }
             
             $success = 0;
@@ -589,7 +599,7 @@ class WooCzlExpress {
             
             wp_send_json_success(array(
                 'message' => sprintf(
-                    __('处理完成。成功：%d，失败：%d', 'woo-czl-express'),
+                    esc_html__('处理完成。成功：%1$d，失败：%2$d', 'czlexpress-for-woocommerce'),
                     $success,
                     $failed
                 ),
@@ -609,11 +619,11 @@ class WooCzlExpress {
     public function render_orders_page() {
         // 检查权限
         if (!current_user_can('manage_woocommerce')) {
-            wp_die(__('您没有足够的权限访问此页面', 'woo-czl-express'));
+            wp_die(esc_html__('您没有足够的权限访问此页面', 'czlexpress-for-woocommerce'));
         }
         
         // 加载订单列表页面模板
-        require_once WOO_CZL_EXPRESS_PATH . 'admin/views/orders.php';
+        require_once CZL_EXPRESS_PATH . 'admin/views/orders.php';
     }
     
     /**

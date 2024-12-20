@@ -131,16 +131,16 @@ if (!class_exists('CZL_Order')) {
                 }
                 
             } catch (Exception $e) {
-                error_log('CZL Express Error: Create shipment failed - ' . $e->getMessage());
-                error_log('CZL Express Error Stack Trace: ' . $e->getTraceAsString());
+                error_log('CZL Express Error: Create shipment failed - ' . esc_html($e->getMessage()));
+                error_log('CZL Express Error Stack Trace: ' . esc_html($e->getTraceAsString()));
                 
                 // 添加错误提示到订单备注
                 if (isset($order)) {
-                    $order->add_order_note('运单创建失败: ' . $e->getMessage());
+                    $order->add_order_note('运单创建失败: ' . esc_html($e->getMessage()));
                 }
                 
                 // 抛出异常以便上层处理
-                throw new Exception($e->getMessage());
+                throw new Exception(esc_html($e->getMessage()));
             }
         }
         

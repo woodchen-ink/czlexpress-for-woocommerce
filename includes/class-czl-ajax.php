@@ -10,7 +10,7 @@ class CZL_Ajax {
         check_ajax_referer('czl_test_api', 'nonce');
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => __('Permission denied', 'woo-czl-express')));
+            wp_send_json_error(array('message' => __('Permission denied', 'czlexpress-for-woocommerce')));
         }
         
         $tester = new CZL_API_Test();
@@ -27,7 +27,7 @@ class CZL_Ajax {
         check_ajax_referer('czl_test_api', 'nonce');
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => __('Permission denied', 'woo-czl-express')));
+            wp_send_json_error(array('message' => __('Permission denied', 'czlexpress-for-woocommerce')));
         }
         
         $tester = new CZL_API_Test();

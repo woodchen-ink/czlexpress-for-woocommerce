@@ -9,10 +9,10 @@ $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'settings';
     
     <nav class="nav-tab-wrapper">
         <a href="?page=czl-express&tab=settings" class="nav-tab <?php echo $tab === 'settings' ? 'nav-tab-active' : ''; ?>">
-            <?php _e('基本设置', 'woo-czl-express'); ?>
+            <?php _e('基本设置', 'czlexpress-for-woocommerce'); ?>
         </a>
         <a href="?page=czl-express&tab=test" class="nav-tab <?php echo $tab === 'test' ? 'nav-tab-active' : ''; ?>">
-            <?php _e('接口测试', 'woo-czl-express'); ?>
+            <?php _e('接口测试', 'czlexpress-for-woocommerce'); ?>
         </a>
     </nav>
     
@@ -20,10 +20,10 @@ $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'settings';
         <?php
         switch ($tab) {
             case 'test':
-                require_once WOO_CZL_EXPRESS_PATH . 'admin/views/api-test.php';
+                require_once CZL_EXPRESS_PATH . 'admin/views/api-test.php';
                 break;
             default:
-                require_once WOO_CZL_EXPRESS_PATH . 'admin/views/settings.php';
+                require_once CZL_EXPRESS_PATH . 'admin/views/settings.php';
                 break;
         }
         ?>

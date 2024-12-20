@@ -100,7 +100,7 @@ class CZL_API {
         $body = json_decode(wp_remote_retrieve_body($response), true);
         
         if (empty($body['success'])) {
-            throw new Exception(!empty($body['message']) ? $body['message'] : '认证失败');
+            throw new Exception(!empty($body['message']) ? esc_html($body['message']) : esc_html__('认证失败', 'woocommerce-czlexpress'));
         }
         
         $this->token = $body['data']['token'];
@@ -126,7 +126,7 @@ class CZL_API {
         );
         
         if ($data !== null) {
-            $args['body'] = json_encode($data);
+            $args['body'] = wp_json_encode($data);
         }
         
         $response = wp_remote_request($this->api_url . $endpoint, $args);
@@ -138,7 +138,7 @@ class CZL_API {
         $body = json_decode(wp_remote_retrieve_body($response), true);
         
         if (empty($body['success'])) {
-            throw new Exception(!empty($body['message']) ? $body['message'] : '请求失败');
+            throw new Exception(!empty($body['message']) ? esc_html($body['message']) : esc_html__('请求失败', 'woocommerce-czlexpress'));
         }
         
         return $body['data'];
@@ -195,7 +195,7 @@ class CZL_API {
             return $data;
             
         } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . $e->getMessage());
+            error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
             throw $e;
         }
     }
@@ -229,7 +229,7 @@ class CZL_API {
             
             $response = wp_remote_post('https://tms.czl.net/createOrderApi.htm', array(
                 'body' => array(
-                    'Param' => json_encode($order_data)
+                    'Param' => wp_json_encode($order_data)
                 ),
                 'timeout' => 30
             ));
@@ -247,13 +247,13 @@ class CZL_API {
             }
             
             if (empty($result['ack']) || $result['ack'] !== 'true') {
-                throw new Exception(!empty($result['message']) ? urldecode($result['message']) : '未知错误');
+                throw new Exception(!empty($result['message']) ? esc_html($result['message']) : esc_html__('未知错误', 'woocommerce-czlexpress'));
             }
             
             return $result;
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: Create order failed - ' . $e->getMessage());
+            error_log('CZL Express Error: Create order failed - ' . esc_html($e->getMessage()));
             error_log('CZL Express Error Stack Trace: ' . $e->getTraceAsString());
             throw $e;
         }
@@ -284,7 +284,7 @@ class CZL_API {
             return $result[0]['data'][0];
             
         } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . $e->getMessage());
+            error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
             throw $e;
         }
     }
@@ -338,7 +338,7 @@ class CZL_API {
             );
             
         } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . $e->getMessage());
+            error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
             throw $e;
         }
     }
@@ -365,7 +365,7 @@ class CZL_API {
             return $result['data'];
             
         } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . $e->getMessage());
+            error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
             throw $e;
         }
     }
@@ -415,83 +415,65 @@ class CZL_API {
             $this->customer_userid = $result['customer_userid'];
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: Authentication failed - ' . $e->getMessage());
+            error_log('CZL Express Error: Authentication failed - ' . esc_html($e->getMessage()));
             throw new Exception('认证失败，请联系CZL Express');
         }
     }
     
     private function make_request($url, $data = array(), $method = 'POST') {
         try {
-            $ch = curl_init();
-            
-            $curl_options = array(
-                CURLOPT_URL => $url,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HEADER => false,
-                CURLOPT_SSL_VERIFYPEER => true,
-                CURLOPT_SSL_VERIFYHOST => 2,
-                CURLOPT_TIMEOUT => 60,        // 增加超时时间到60秒
-                CURLOPT_CONNECTTIMEOUT => 30, // 连接超时时间30秒
-                CURLOPT_VERBOSE => true,      // 启用详细日志
-                CURLOPT_HTTPHEADER => array(
-                    'Accept: */*',
-                    'Accept-Language: zh-cn',
-                    'Cache-Control: no-cache',
-                    'Content-Type: application/x-www-form-urlencoded;charset=UTF-8'
-                )
+            $args = array(
+                'method' => $method,
+                'timeout' => 60,
+                'redirection' => 5,
+                'httpversion' => '1.1',
+                'blocking' => true,
+                'headers' => array(
+                    'Accept' => '*/*',
+                    'Accept-Language' => 'zh-cn',
+                    'Cache-Control' => 'no-cache',
+                    'Content-Type' => 'application/x-www-form-urlencoded;charset=UTF-8'
+                ),
+                'cookies' => array()
             );
-            
-            if ($method === 'POST') {
-                $curl_options[CURLOPT_POST] = true;
-                if (!empty($data)) {
-                    // 确保数据正确编码
-                    $post_data = is_array($data) ? http_build_query($data) : $data;
-                    $curl_options[CURLOPT_POSTFIELDS] = $post_data;
-                }
+
+            if ($method === 'POST' && !empty($data)) {
+                $args['body'] = is_array($data) ? $data : wp_json_encode($data);
             }
-            
-            curl_setopt_array($ch, $curl_options);
-            
-            // 捕获详细日志
-            $verbose = fopen('php://temp', 'w+');
-            curl_setopt($ch, CURLOPT_STDERR, $verbose);
-            
-            $response = curl_exec($ch);
-            $error = curl_error($ch);
-            $errno = curl_errno($ch);
-            
-            // 记录详细日志
-            rewind($verbose);
-            $verbose_log = stream_get_contents($verbose);
-            error_log('CZL Express: Curl verbose log - ' . $verbose_log);
-            fclose($verbose);
-            
-            if ($errno) {
-                error_log('CZL Express: Curl error - ' . $error);
-                throw new Exception('请求失败: ' . $error);
+
+            // 使用wp_remote_request替代curl
+            $response = wp_remote_request($url, $args);
+
+            if (is_wp_error($response)) {
+                throw new Exception('请求失败: ' . $response->get_error_message());
             }
+
+            $body = wp_remote_retrieve_body($response);
             
-            if ($response === false) {
-                throw new Exception('请求失败');
+            if (empty($body)) {
+                throw new Exception('请求失败: 空响应');
             }
-            
-            error_log('CZL Express: Raw response - ' . $response);
-            
-            $result = json_decode($response, true);
+
+            // 记录响应日志
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express: Raw response - ' . $body);
+            }
+
+            $result = json_decode($body, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                error_log('CZL Express: JSON decode error - ' . json_last_error_msg());
+                if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                    error_log('CZL Express: JSON decode error - ' . json_last_error_msg());
+                }
                 throw new Exception('响应数据格式错误');
             }
-            
+
             return $result;
-            
+
         } catch (Exception $e) {
-            error_log('CZL Express Error: Request failed - ' . $e->getMessage());
-            throw $e;
-        } finally {
-            if (isset($ch)) {
-                curl_close($ch);
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express Error: Request failed - ' . esc_html($e->getMessage()));
             }
+            throw $e;
         }
     }
     
@@ -500,44 +482,49 @@ class CZL_API {
      */
     public function authenticate() {
         try {
-            error_log('CZL Express: Starting authentication');
-            
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express: Starting authentication');
+            }
+
             $auth_url = 'https://tms.czl.net/selectAuth.htm';
             $auth_data = array(
                 'username' => $this->username,
                 'password' => $this->password
             );
-            
-            error_log('CZL Express: Auth request data - ' . print_r($auth_data, true));
-            
-            $ch = curl_init($auth_url);
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($auth_data));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                'Accept-Language: zh-cn',
-                'Connection: Keep-Alive',
-                'Cache-Control: no-cache'
-            ));
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-            
-            $response = curl_exec($ch);
-            error_log('CZL Express: Auth raw response - ' . $response);
-            
-            if (curl_errno($ch)) {
-                throw new Exception('认证请求失败: ' . curl_error($ch));
+
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express: Auth request data - ' . print_r($auth_data, true));
             }
-            
-            curl_close($ch);
-            
+
+            $response = wp_remote_post($auth_url, array(
+                'body' => $auth_data,
+                'timeout' => 30,
+                'headers' => array(
+                    'Accept-Language' => 'zh-cn',
+                    'Connection' => 'Keep-Alive',
+                    'Cache-Control' => 'no-cache'
+                )
+            ));
+
+            if (is_wp_error($response)) {
+                throw new Exception('认证请求失败: ' . $response->get_error_message());
+            }
+
+            $body = wp_remote_retrieve_body($response);
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express: Auth raw response - ' . $body);
+            }
+
             // 解析响应
-            $result = json_decode(str_replace("'", '"', $response), true);
-            error_log('CZL Express: Auth decoded response - ' . print_r($result, true));
-            
+            $result = json_decode(str_replace("'", '"', $body), true);
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express: Auth decoded response - ' . print_r($result, true));
+            }
+
             if (empty($result) || !isset($result['customer_id'])) {
                 throw new Exception('认证失败: 无效的响应数据');
             }
-            
+
             // 返回认证结果
             return array(
                 'ack' => true,
@@ -545,97 +532,87 @@ class CZL_API {
                 'customer_userid' => $result['customer_userid'],
                 'message' => ''
             );
-            
+
         } catch (Exception $e) {
-            error_log('CZL Express Error: Authentication failed - ' . $e->getMessage());
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express Error: Authentication failed - ' . esc_html($e->getMessage()));
+            }
             return array(
                 'ack' => false,
-                'message' => $e->getMessage()
+                'message' => esc_html($e->getMessage())
             );
         }
     }
     
     public function create_shipment($params) {
         try {
-            error_log('CZL Express: Starting create shipment');
-            
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express: Starting create shipment');
+            }
+
             // 先进行认证
             $auth_result = $this->authenticate();
             if (!$auth_result['ack']) {
                 throw new Exception('认证失败: ' . $auth_result['message']);
             }
-            
+
             // 添加认证信息到参数
             $params['customer_id'] = $auth_result['customer_id'];
             $params['customer_userid'] = $auth_result['customer_userid'];
-            
+
             // 准备请求数据
             $request_data = array(
-                'param' => json_encode($params)
+                'param' => wp_json_encode($params)
             );
-            
-            error_log('CZL Express: Create shipment request data - ' . print_r($request_data, true));
-            
-            // 发送请求
-            $curl = curl_init();
-            curl_setopt_array($curl, array(
-                CURLOPT_URL => 'https://tms.czl.net/createOrderApi.htm',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 30,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_POSTFIELDS => http_build_query($request_data),
-                CURLOPT_HTTPHEADER => array(
-                    'Accept: */*',
-                    'Accept-Language: zh-cn',
-                    'Cache-Control: no-cache',
-                    'Content-Type: application/x-www-form-urlencoded;charset=UTF-8'
-                ),
-                CURLOPT_VERBOSE => true,
-                CURLOPT_STDERR => fopen('php://temp', 'w+')
-            ));
-            
-            // 获取详细的CURL日志
-            $verbose = fopen('php://temp', 'w+');
-            curl_setopt($curl, CURLOPT_STDERR, $verbose);
-            
-            $response = curl_exec($curl);
-            $err = curl_error($curl);
-            
-            // 记录CURL详细日志
-            rewind($verbose);
-            $verboseLog = stream_get_contents($verbose);
-            error_log('CZL Express: Curl verbose log - ' . $verboseLog);
-            
-            if ($err) {
-                throw new Exception('CURL错误: ' . $err);
+
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express: Create shipment request data - ' . print_r($request_data, true));
             }
-            
-            error_log('CZL Express: Raw response - ' . $response);
-            
-            $result = json_decode($response, true);
+
+            // 发送请求
+            $response = wp_remote_post('https://tms.czl.net/createOrderApi.htm', array(
+                'body' => $request_data,
+                'timeout' => 30,
+                'headers' => array(
+                    'Accept' => '*/*',
+                    'Accept-Language' => 'zh-cn',
+                    'Cache-Control' => 'no-cache',
+                    'Content-Type' => 'application/x-www-form-urlencoded;charset=UTF-8'
+                )
+            ));
+
+            if (is_wp_error($response)) {
+                throw new Exception('CURL错误: ' . $response->get_error_message());
+            }
+
+            $body = wp_remote_retrieve_body($response);
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express: Raw response - ' . $body);
+            }
+
+            $result = json_decode($body, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 throw new Exception('JSON解析错误: ' . json_last_error_msg());
             }
-            
-            error_log('CZL Express: Create shipment response - ' . print_r($result, true));
-            
+
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express: Create shipment response - ' . print_r($result, true));
+            }
+
             // 检查API错误信息
             if (isset($result['message']) && !empty($result['message'])) {
-                error_log('CZL Express: API error message - ' . $result['message']);
+                if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                    error_log('CZL Express: API error message - ' . $result['message']);
+                }
             }
-            
+
             return $result;
-            
+
         } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . $e->getMessage());
-            throw $e;
-        } finally {
-            if (isset($curl)) {
-                curl_close($curl);
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
             }
+            throw $e;
         }
     }
     
@@ -666,7 +643,7 @@ class CZL_API {
             );
             
         } catch (Exception $e) {
-            throw new Exception('获取跟踪单号失败: ' . $e->getMessage());
+            throw new Exception('获取跟踪单号失败: ' . esc_html($e->getMessage()));
         }
     }
     
@@ -752,11 +729,11 @@ class CZL_API {
             );
             
         } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . $e->getMessage());
+            error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
             return array(
                 'success' => false,
                 'data' => null,
-                'message' => $e->getMessage()
+                'message' => esc_html($e->getMessage())
             );
         }
     }

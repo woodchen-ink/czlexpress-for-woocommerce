@@ -1,16 +1,16 @@
 <?php
 /**
  * Plugin Name: CZL Express for WooCommerce
- * Plugin URI: https://exp.czl.net
+ * Plugin URI: https://github.com/woodchen-ink/woocommerce-czlexpress
  * Description: CZL Express shipping integration for WooCommerce. Provides real-time shipping rates, shipment creation, and package tracking for CZL Express delivery service.
  * Version: 1.0.0
- * Requires at least: 5.8
- * Requires PHP: 7.2
+ * Requires at least: 6.7
+ * Requires PHP: 8.0
  * Author: CZL Express
  * Author URI: https://exp.czl.net
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: woo-czl-express
+ * Text Domain: czlexpress-for-woocommerce
  * Domain Path: /languages
  * WC requires at least: 6.0.0
  * WC tested up to: 8.3.0
@@ -35,27 +35,27 @@ if (!defined('ABSPATH')) {
 }
 
 // 防止重复加载
-if (defined('WOO_CZL_EXPRESS_VERSION')) {
+if (defined('CZL_EXPRESS_VERSION')) {
     return;
 }
 
 // 定义插件常量
-define('WOO_CZL_EXPRESS_VERSION', '1.0.0');
-define('WOO_CZL_EXPRESS_PATH', plugin_dir_path(__FILE__));
-define('WOO_CZL_EXPRESS_URL', plugin_dir_url(__FILE__));
+define('CZL_EXPRESS_VERSION', '1.0.0');
+define('CZL_EXPRESS_PATH', plugin_dir_path(__FILE__));
+define('CZL_EXPRESS_URL', plugin_dir_url(__FILE__));
 
 // 在插件激活时创建数据表
-register_activation_hook(__FILE__, 'wc_czlexpress_activate');
+register_activation_hook(__FILE__, 'czl_express_activate');
 
-function wc_czlexpress_activate() {
+function czl_express_activate() {
     // 确保加载安装类
-    require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-install.php';
+    require_once CZL_EXPRESS_PATH . 'includes/class-czl-install.php';
     
     // 创建数据表和默认选项
     CZL_Install::init();
     
     // 记录版本号
-    update_option('czl_express_version', WOO_CZL_EXPRESS_VERSION);
+    update_option('czl_express_version', CZL_EXPRESS_VERSION);
     
     // 注册定时任务
     if (!wp_next_scheduled('czl_sync_tracking_numbers_hook')) {
@@ -80,11 +80,11 @@ add_action('before_woocommerce_init', function() {
 });
 
 // 检查环境
-function wc_czlexpress_check_environment() {
+function czl_express_check_environment() {
     if (!class_exists('WooCommerce')) {
         add_action('admin_notices', function() {
             echo '<div class="error"><p>' . 
-                 __('CZL Express requires WooCommerce to be installed and active', 'woocommerce-czlexpress') . 
+                 esc_html__('CZL Express requires WooCommerce to be installed and active', 'czlexpress-for-woocommerce') . 
                  '</p></div>';
         });
         return false;
@@ -93,7 +93,7 @@ function wc_czlexpress_check_environment() {
     if (version_compare(WC_VERSION, '6.0.0', '<')) {
         add_action('admin_notices', function() {
             echo '<div class="error"><p>' . 
-                 __('CZL Express requires WooCommerce 6.0.0 or higher', 'woocommerce-czlexpress') . 
+                 esc_html__('CZL Express requires WooCommerce 6.0.0 or higher', 'czlexpress-for-woocommerce') . 
                  '</p></div>';
         });
         return false;
@@ -103,21 +103,21 @@ function wc_czlexpress_check_environment() {
 }
 
 // 初始化插件
-function woo_czl_express_init() {
-    if (wc_czlexpress_check_environment()) {
+function czl_express_init() {
+    if (czl_express_check_environment()) {
         // 加载语言文件
         load_plugin_textdomain(
-            'woo-czl-express',
+            'czlexpress-for-woocommerce',
             false,
             dirname(plugin_basename(__FILE__)) . '/languages'
         );
         
         // 加载必要的类文件
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-woo-czl-express.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-api.php';
-        require_once WOO_CZL_EXPRESS_PATH . 'includes/class-czl-order.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czlexpress.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-api.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-order.php';
         
-        WooCzlExpress::instance();
+        CZLExpress::instance();
         
         // 添加AJAX处理
         add_action('wp_ajax_czl_create_shipment', 'czl_ajax_create_shipment');
@@ -135,15 +135,16 @@ function woo_czl_express_init() {
 // 注册自定义订单状态
 function register_czl_order_statuses() {
     register_post_status('wc-in_transit', array(
-        'label' => _x('In Transit', 'Order status', 'woo-czl-express'),
+        'label' => _x('In Transit', 'Order status', 'czlexpress-for-woocommerce'),
         'public' => true,
         'show_in_admin_status_list' => true,
         'show_in_admin_all_list' => true,
         'exclude_from_search' => false,
+        /* translators: %s: number of orders */
         'label_count' => _n_noop(
             'In Transit <span class="count">(%s)</span>',
             'In Transit <span class="count">(%s)</span>',
-            'woo-czl-express'
+            'czlexpress-for-woocommerce'
         )
     ));
     
@@ -155,7 +156,7 @@ function register_czl_order_statuses() {
         foreach ($order_statuses as $key => $status) {
             $new_statuses[$key] = $status;
             if ($key === 'wc-processing') {
-                $new_statuses['wc-in_transit'] = _x('In Transit', 'Order status', 'woo-czl-express');
+                $new_statuses['wc-in_transit'] = _x('In Transit', 'Order status', 'czlexpress-for-woocommerce');
             }
         }
         
@@ -176,9 +177,9 @@ function czl_enqueue_admin_scripts($hook) {
     // 加载自定义脚本
     wp_enqueue_script(
         'czl-admin-script',
-        WOO_CZL_EXPRESS_URL . 'assets/js/admin.js',
+        CZL_EXPRESS_URL . 'assets/js/admin.js',
         array('jquery'),
-        WOO_CZL_EXPRESS_VERSION,
+        CZL_EXPRESS_VERSION,
         true
     );
     
@@ -238,6 +239,16 @@ function czl_ajax_update_tracking_number() {
     try {
         global $wpdb;
         
+        // 获取运单信息
+        $shipment = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}czl_shipments WHERE order_id = %d",
+            $order_id
+        ));
+
+        if (!$shipment) {
+            throw new Exception('运单不存在');
+        }
+        
         // 更新数据库中的跟踪单号
         $updated = $wpdb->update(
             $wpdb->prefix . 'czl_shipments',
@@ -263,8 +274,14 @@ function czl_ajax_update_tracking_number() {
                 $tracking_number
             ));
         }
+
+        // 清除相关缓存
+        $tracking = new CZL_Tracking();
+        $tracking->clear_tracking_cache($shipment->id, $tracking_number, $order_id);
         
-        wp_send_json_success();
+        wp_send_json_success(array(
+            'message' => '运单号更新成功'
+        ));
         
     } catch (Exception $e) {
         wp_send_json_error($e->getMessage());
@@ -300,7 +317,7 @@ function czl_do_update_tracking_info($order_id) {
 }
 add_action('czl_do_update_tracking_info', 'czl_do_update_tracking_info');
 
-add_action('plugins_loaded', 'woo_czl_express_init');
+add_action('plugins_loaded', 'czl_express_init');
 
 // 自动创建运单的钩子
 add_action('woocommerce_order_status_processing', function($order_id) {
@@ -318,7 +335,7 @@ function czl_add_cron_interval($schedules) {
     // 添加每30分钟执行一次的间隔
     $schedules['czl_thirty_minutes'] = array(
         'interval' => 1800, // 30分钟 = 1800秒
-        'display'  => __('Every 30 minutes', 'woo-czl-express')
+        'display'  => esc_html__('Every 30 minutes', 'czlexpress-for-woocommerce')
     );
     return $schedules;
 }

@@ -14,33 +14,33 @@ class CZL_Product_Fields {
         // 中文品名字段
         woocommerce_wp_text_input(array(
             'id' => '_czl_name_cn',
-            'label' => __('中文品名', 'woo-czl-express'),
+            'label' => __('Chinese Name', 'czlexpress-for-woocommerce'),
             'desc_tip' => true,
-            'description' => __('输入产品的中文名称，用于物流申报', 'woo-czl-express')
+            'description' => __('Enter the Chinese name of the product', 'czlexpress-for-woocommerce')
         ));
         
         // 海关编码字段
         woocommerce_wp_text_input(array(
             'id' => '_czl_hs_code',
-            'label' => __('海关编码 (HS Code)', 'woo-czl-express'),
+            'label' => __('HS Code', 'czlexpress-for-woocommerce'),
             'desc_tip' => true,
-            'description' => __('输入产品的海关编码 (HS Code)', 'woo-czl-express')
+            'description' => __('Enter the HS code for customs declaration', 'czlexpress-for-woocommerce')
         ));
         
         // 用途字段
         woocommerce_wp_text_input(array(
             'id' => '_czl_usage',
-            'label' => __('用途', 'woo-czl-express'),
+            'label' => __('Usage', 'czlexpress-for-woocommerce'),
             'desc_tip' => true,
-            'description' => __('输入产品的用途，例如：日常使用、装饰等', 'woo-czl-express')
+            'description' => __('Enter the product usage, e.g., daily use, decoration, etc.', 'czlexpress-for-woocommerce')
         ));
         
         // 材质字段
         woocommerce_wp_text_input(array(
             'id' => '_czl_material',
-            'label' => __('材质', 'woo-czl-express'),
+            'label' => __('Material', 'czlexpress-for-woocommerce'),
             'desc_tip' => true,
-            'description' => __('输入产品的材质，例如：塑料、金属、布料等', 'woo-czl-express')
+            'description' => __('Enter the product material, e.g., plastic, metal, fabric, etc.', 'czlexpress-for-woocommerce')
         ));
         
         echo '</div>';

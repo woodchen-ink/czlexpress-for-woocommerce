@@ -26,25 +26,25 @@ class CZL_Settings {
             'basic' => array(
                 array(
                     'name' => 'czl_api_url',
-                    'label' => __('API URL', 'woo-czl-express'),
+                    'label' => __('API URL', 'czlexpress-for-woocommerce'),
                     'type' => 'text',
                     'default' => '',
                 ),
                 array(
                     'name' => 'czl_username',
-                    'label' => __('Username', 'woo-czl-express'),
+                    'label' => __('Username', 'czlexpress-for-woocommerce'),
                     'type' => 'text',
                     'default' => '',
                 ),
                 array(
                     'name' => 'czl_password',
-                    'label' => __('Password', 'woo-czl-express'),
+                    'label' => __('Password', 'czlexpress-for-woocommerce'),
                     'type' => 'password',
                     'default' => '',
                 ),
                 array(
                     'name' => 'czl_exchange_rate',
-                    'label' => __('Exchange Rate', 'woo-czl-express'),
+                    'label' => __('Exchange Rate', 'czlexpress-for-woocommerce'),
                     'type' => 'number',
                     'default' => '1',
                     'step' => '0.0001',

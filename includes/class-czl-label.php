@@ -55,7 +55,7 @@ class CZL_Label {
             if ($url) {
                 $actions['czl_print_label'] = array(
                     'url' => wp_nonce_url(admin_url('admin-ajax.php?action=czl_print_label&order_id=' . $order->get_id()), 'czl_print_label'),
-                    'name' => __('打印运单', 'woo-czl-express'),
+                    'name' => __('打印运单', 'czlexpress-for-woocommerce'),
                     'action' => 'czl_print_label'
                 );
             }
@@ -70,19 +70,19 @@ class CZL_Label {
      */
     public static function handle_print_request() {
         if (!current_user_can('edit_shop_orders')) {
-            wp_die(__('您没有权限执行此操作', 'woo-czl-express'));
+            wp_die(__('您没有权限执行此操作', 'czlexpress-for-woocommerce'));
         }
         
         check_admin_referer('czl_print_label');
         
         $order_id = isset($_GET['order_id']) ? absint($_GET['order_id']) : 0;
         if (!$order_id) {
-            wp_die(__('订单ID无效', 'woo-czl-express'));
+            wp_die(__('订单ID无效', 'czlexpress-for-woocommerce'));
         }
         
         $label_url = self::get_label_url($order_id);
         if (!$label_url) {
-            wp_die(__('未找到运单标签', 'woo-czl-express'));
+            wp_die(__('未找到运单标签', 'czlexpress-for-woocommerce'));
         }
         
         wp_redirect($label_url);

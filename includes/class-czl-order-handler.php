@@ -38,29 +38,35 @@ class CZL_Order_Handler {
                 // 保存运单信息
                 update_post_meta($order_id, '_czl_order_id', $response['order_id']);
                 update_post_meta($order_id, '_czl_tracking_number', $response['tracking_number']);
-                
-                // 添加订单备注
-                $note = sprintf(
-                    __('CZL Express运单创建成功。运单号: %s', 'woo-czl-express'),
-                    $response['tracking_number']
+
+                // 在数据库中创建运单记录
+                global $wpdb;
+                $wpdb->insert(
+                    $wpdb->prefix . 'czl_shipments',
+                    array(
+                        'order_id' => $order_id,
+                        'tracking_number' => $response['tracking_number'],
+                        'czl_order_id' => $response['order_id'],
+                        'status' => 'pending',
+                        'created_at' => current_time('mysql')
+                    ),
+                    array('%d', '%s', '%s', '%s', '%s')
                 );
-                $order->add_order_note($note);
-                
-                // 获取并保存运单标签URL
-                $label_url = $this->api->get_label($response['order_id']);
-                if ($label_url) {
-                    update_post_meta($order_id, '_czl_label_url', $label_url);
-                }
+
+                $shipment_id = $wpdb->insert_id;
+
+                // 清除相关缓存
+                $tracking = new CZL_Tracking();
+                $tracking->clear_tracking_cache($shipment_id, $response['tracking_number'], $order_id);
+
+                return $response;
             }
-            
         } catch (Exception $e) {
-            $error_message = sprintf(
-                __('CZL Express运单创建失败: %s', 'woo-czl-express'),
-                $e->getMessage()
-            );
-            $order->add_order_note($error_message);
-            error_log('CZL Express Error: ' . $error_message);
+            error_log('CZL Express Error: Failed to create shipment - ' . $e->getMessage());
+            throw $e;
         }
+        
+        return false;
     }
     
     /**
@@ -94,7 +100,7 @@ class CZL_Order_Handler {
             $response = $this->api->cancel_order($czl_order_id);
             
             // 添加订单备注
-            $note = __('CZL Express运单已取消', 'woo-czl-express');
+            $note = __('CZL Express运单已取消', 'czlexpress-for-woocommerce');
             $order->add_order_note($note);
             
             // 清除运单信息
@@ -104,7 +110,7 @@ class CZL_Order_Handler {
             
         } catch (Exception $e) {
             $error_message = sprintf(
-                __('CZL Express运单取消失败: %s', 'woo-czl-express'),
+                __('CZL Express运单取消失败: %s', 'czlexpress-for-woocommerce'),
                 $e->getMessage()
             );
             $order->add_order_note($error_message);

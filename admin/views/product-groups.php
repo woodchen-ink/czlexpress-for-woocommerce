@@ -10,7 +10,7 @@ $groups = get_option('czl_product_groups', array());
     <?php settings_errors(); ?>
     
     <div class="czl-page-description">
-        <p><?php _e('在这里管理运输方式的分组显示。相同分组的运输方式将合并显示，并显示最低价格。', 'woo-czl-express'); ?></p>
+        <p><?php _e('在这里管理运输方式的分组显示。相同分组的运输方式将合并显示，并显示最低价格。', 'czlexpress-for-woocommerce'); ?></p>
     </div>
     
     <form method="post" action="">
@@ -20,10 +20,10 @@ $groups = get_option('czl_product_groups', array());
             <table class="widefat czl-product-groups" id="czl-product-groups">
                 <thead>
                     <tr>
-                        <th class="column-enabled"><?php _e('启用', 'woo-czl-express'); ?></th>
-                        <th class="column-name"><?php _e('分组名称', 'woo-czl-express'); ?></th>
-                        <th class="column-prefixes"><?php _e('匹配前缀', 'woo-czl-express'); ?></th>
-                        <th class="column-actions"><?php _e('操作', 'woo-czl-express'); ?></th>
+                        <th class="column-enabled"><?php _e('启用', 'czlexpress-for-woocommerce'); ?></th>
+                        <th class="column-name"><?php _e('分组名称', 'czlexpress-for-woocommerce'); ?></th>
+                        <th class="column-prefixes"><?php _e('匹配前缀', 'czlexpress-for-woocommerce'); ?></th>
+                        <th class="column-actions"><?php _e('操作', 'czlexpress-for-woocommerce'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -41,10 +41,10 @@ $groups = get_option('czl_product_groups', array());
                             <td class="column-prefixes">
                                 <textarea name="groups[<?php echo esc_attr($key); ?>][prefixes]" rows="3" class="large-text"
                                 ><?php echo esc_textarea(implode("\n", $group['prefixes'])); ?></textarea>
-                                <p class="description"><?php _e('每行输入一个前缀，运输方式名称以此前缀开头将被归入此分组', 'woo-czl-express'); ?></p>
+                                <p class="description"><?php _e('每行输入一个前缀，运输方式名称以此前缀开头将被归入此分组', 'czlexpress-for-woocommerce'); ?></p>
                             </td>
                             <td class="column-actions">
-                                <button type="button" class="button remove-group" title="<?php esc_attr_e('删除此分组', 'woo-czl-express'); ?>">
+                                <button type="button" class="button remove-group" title="<?php esc_attr_e('删除此分组', 'czlexpress-for-woocommerce'); ?>">
                                     <span class="dashicons dashicons-trash"></span>
                                 </button>
                             </td>
@@ -52,7 +52,7 @@ $groups = get_option('czl_product_groups', array());
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr class="no-items">
-                            <td colspan="4"><?php _e('没有找到分组配置', 'woo-czl-express'); ?></td>
+                            <td colspan="4"><?php _e('没有找到分组配置', 'czlexpress-for-woocommerce'); ?></td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -61,7 +61,7 @@ $groups = get_option('czl_product_groups', array());
                         <td colspan="4">
                             <button type="button" class="button add-group">
                                 <span class="dashicons dashicons-plus-alt2"></span>
-                                <?php _e('添加分组', 'woo-czl-express'); ?>
+                                <?php _e('添加分组', 'czlexpress-for-woocommerce'); ?>
                             </button>
                         </td>
                     </tr>
@@ -69,7 +69,7 @@ $groups = get_option('czl_product_groups', array());
             </table>
         </div>
         
-        <?php submit_button(__('保存分组设置', 'woo-czl-express'), 'primary', 'submit', true); ?>
+        <?php submit_button(__('保存分组设置', 'czlexpress-for-woocommerce'), 'primary', 'submit', true); ?>
     </form>
 </div>
 
@@ -79,14 +79,14 @@ $groups = get_option('czl_product_groups', array());
             <input type="checkbox" name="groups[{{index}}][enabled]" value="1" checked>
         </td>
         <td class="column-name">
-            <input type="text" name="groups[{{index}}][groupName]" value="" class="regular-text" placeholder="<?php esc_attr_e('输入分组名称', 'woo-czl-express'); ?>">
+            <input type="text" name="groups[{{index}}][groupName]" value="" class="regular-text" placeholder="<?php esc_attr_e('输入分组名称', 'czlexpress-for-woocommerce'); ?>">
         </td>
         <td class="column-prefixes">
-            <textarea name="groups[{{index}}][prefixes]" rows="3" class="large-text" placeholder="<?php esc_attr_e('每行输入一个前缀', 'woo-czl-express'); ?>"></textarea>
-            <p class="description"><?php _e('每行输入一个前缀，运输方式名称以此前缀开头将被归入此分组', 'woo-czl-express'); ?></p>
+            <textarea name="groups[{{index}}][prefixes]" rows="3" class="large-text" placeholder="<?php esc_attr_e('每行输入一个前缀', 'czlexpress-for-woocommerce'); ?>"></textarea>
+            <p class="description"><?php _e('每行输入一个前缀，运输方式名称以此前缀开头将被归入此分组', 'czlexpress-for-woocommerce'); ?></p>
         </td>
         <td class="column-actions">
-            <button type="button" class="button remove-group" title="<?php esc_attr_e('删除此分组', 'woo-czl-express'); ?>">
+            <button type="button" class="button remove-group" title="<?php esc_attr_e('删除此分组', 'czlexpress-for-woocommerce'); ?>">
                 <span class="dashicons dashicons-trash"></span>
             </button>
         </td>
@@ -187,7 +187,7 @@ jQuery(function($) {
         $row.fadeOut(300, function() {
             $row.remove();
             if ($table.find('tbody tr').length === 0) {
-                $table.find('tbody').append('<tr class="no-items"><td colspan="4"><?php _e('没有找到分组配置', 'woo-czl-express'); ?></td></tr>');
+                $table.find('tbody').append('<tr class="no-items"><td colspan="4"><?php _e('没有找到分组配置', 'czlexpress-for-woocommerce'); ?></td></tr>');
             }
         });
     });

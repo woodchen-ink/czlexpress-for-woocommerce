@@ -15,7 +15,7 @@ class CZL_API_Test {
             $this->api->get_token();
             return array(
                 'success' => true,
-                'message' => __('Successfully connected to CZL Express API', 'woo-czl-express')
+                'message' => __('Successfully connected to CZL Express API', 'czlexpress-for-woocommerce')
             );
         } catch (Exception $e) {
             return array(

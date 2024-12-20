@@ -8,9 +8,9 @@ class WC_CZL_Shipping_Method extends WC_Shipping_Method {
         
         $this->id = 'czl_express';
         $this->instance_id = absint($instance_id);
-        $this->title = __('CZL Express', 'woo-czl-express');
-        $this->method_title = __('CZL Express', 'woo-czl-express');
-        $this->method_description = __('CZL Express shipping integration', 'woo-czl-express');
+        $this->title = __('CZL Express', 'czlexpress-for-woocommerce');
+        $this->method_title = __('CZL Express', 'czlexpress-for-woocommerce');
+        $this->method_description = __('CZL Express shipping integration', 'czlexpress-for-woocommerce');
         
         $this->supports = array(
             'shipping-zones',
@@ -42,43 +42,44 @@ class WC_CZL_Shipping_Method extends WC_Shipping_Method {
     public function init_form_fields() {
         $this->instance_form_fields = array(
             'enabled' => array(
-                'title' => __('Enable/Disable', 'woo-czl-express'),
+                'title' => __('Enable/Disable', 'czlexpress-for-woocommerce'),
                 'type' => 'checkbox',
-                'label' => __('Enable this shipping method', 'woo-czl-express'),
+                'label' => __('Enable this shipping method', 'czlexpress-for-woocommerce'),
                 'default' => 'yes'
             ),
             'title' => array(
-                'title' => __('Method Title', 'woo-czl-express'),
+                'title' => __('Method Title', 'czlexpress-for-woocommerce'),
                 'type' => 'text',
-                'description' => __('This controls the title which the user sees during checkout.', 'woo-czl-express'),
-                'default' => __('CZL Express', 'woo-czl-express'),
+                'description' => __('This controls the title which the user sees during checkout.', 'czlexpress-for-woocommerce'),
+                'default' => __('CZL Express', 'czlexpress-for-woocommerce'),
                 'desc_tip' => true
             ),
             'show_all_rates' => array(
-                'title' => __('显示方式', 'woo-czl-express'),
+                'title' => __('Display Mode', 'czlexpress-for-woocommerce'),
                 'type' => 'select',
-                'description' => __('选择是显示分组运费还是显示所有具体线路', 'woo-czl-express'),
+                'description' => __('Choose to display grouped shipping rates or all specific routes', 'czlexpress-for-woocommerce'),
                 'default' => 'no',
                 'options' => array(
-                    'no' => __('显示分组运费', 'woo-czl-express'),
-                    'yes' => __('显示所有线路', 'woo-czl-express')
+                    'no' => __('Show Grouped Rates', 'czlexpress-for-woocommerce'),
+                    'yes' => __('Show All Routes', 'czlexpress-for-woocommerce')
                 )
             ),
             'sort_by' => array(
-                'title' => __('排序方式', 'woo-czl-express'),
+                'title' => __('Sort Order', 'czlexpress-for-woocommerce'),
                 'type' => 'select',
-                'description' => __('选择运费显示的排序方式', 'woo-czl-express'),
+                'description' => __('Choose how to sort shipping rates', 'czlexpress-for-woocommerce'),
                 'default' => 'price',
                 'options' => array(
-                    'price' => __('按价格排序', 'woo-czl-express'),
-                    'time' => __('按时效排序', 'woo-czl-express')
+                    'price' => __('Sort by Price', 'czlexpress-for-woocommerce'),
+                    'time' => __('Sort by Delivery Time', 'czlexpress-for-woocommerce')
                 )
             ),
             'exchange_rate' => array(
-                'title' => __('汇率设置', 'woo-czl-express'),
+                'title' => __('Exchange Rate', 'czlexpress-for-woocommerce'),
                 'type' => 'text',
                 'description' => sprintf(
-                    __('设置CNY到%s的汇率。例如：如果1CNY=%s0.14，输入0.14', 'woo-czl-express'),
+                    /* translators: 1: currency code, 2: currency symbol */
+                    __('Set exchange rate from CNY to %1$s. Example: if 1 CNY = %2$s0.14, enter 0.14', 'czlexpress-for-woocommerce'),
                     get_woocommerce_currency(),
                     get_woocommerce_currency_symbol()
                 ),
@@ -144,9 +145,9 @@ class WC_CZL_Shipping_Method extends WC_Shipping_Method {
         if (is_cart() || is_checkout()) {
             wp_enqueue_style(
                 'czl-shipping-method',
-                WOO_CZL_EXPRESS_URL . 'assets/css/shipping-method.css',
+                CZL_EXPRESS_URL . 'assets/css/shipping-method.css',
                 array(),
-                WOO_CZL_EXPRESS_VERSION
+                CZL_EXPRESS_VERSION
             );
         }
     }
