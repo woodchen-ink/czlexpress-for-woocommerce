@@ -23,8 +23,8 @@ foreach ($supported_currencies as $code => $name) {
     
     <div class="czl-page-description">
         <p>
-            <?php _e('在这里设置人民币(CNY)与其他货币的汇率。运费将根据这些汇率自动转换。', 'czlexpress-for-woocommerce'); ?>
-            <?php printf(__('当前商店使用的货币是: %s', 'czlexpress-for-woocommerce'), '<strong>' . $current_currency . '</strong>'); ?>
+            <?php esc_html_e('在这里设置人民币(CNY)与其他货币的汇率。运费将根据这些汇率自动转换。', 'czlexpress-for-woocommerce'); ?>
+            <?php printf(esc_html__('当前商店使用的货币是: %s', 'czlexpress-for-woocommerce'), '<strong>' . esc_html($current_currency) . '</strong>'); ?>
         </p>
     </div>
     
@@ -35,9 +35,9 @@ foreach ($supported_currencies as $code => $name) {
             <table class="widefat czl-exchange-rates" id="czl-exchange-rates">
                 <thead>
                     <tr>
-                        <th class="column-currency"><?php _e('货币', 'czlexpress-for-woocommerce'); ?></th>
-                        <th class="column-rate"><?php _e('汇率 (1 CNY =)', 'czlexpress-for-woocommerce'); ?></th>
-                        <th class="column-actions"><?php _e('操作', 'czlexpress-for-woocommerce'); ?></th>
+                        <th class="column-currency"><?php esc_html_e('货币', 'czlexpress-for-woocommerce'); ?></th>
+                        <th class="column-rate"><?php esc_html_e('汇率 (1 CNY =)', 'czlexpress-for-woocommerce'); ?></th>
+                        <th class="column-actions"><?php esc_html_e('操作', 'czlexpress-for-woocommerce'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -79,7 +79,7 @@ foreach ($supported_currencies as $code => $name) {
                         <td colspan="3">
                             <button type="button" class="button add-rate">
                                 <span class="dashicons dashicons-plus-alt2"></span>
-                                <?php _e('添加汇率', 'czlexpress-for-woocommerce'); ?>
+                                <?php esc_html_e('添加汇率', 'czlexpress-for-woocommerce'); ?>
                             </button>
                         </td>
                     </tr>

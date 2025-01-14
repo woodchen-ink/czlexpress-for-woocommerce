@@ -51,24 +51,24 @@ wp_enqueue_script('jquery');
 ?>
 <script type="text/javascript">
     var czl_ajax = {
-        ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
-        nonce: '<?php echo wp_create_nonce('czl_ajax_nonce'); ?>',
-        creating_text: '<?php _e('正在创建运单...', 'czlexpress-for-woocommerce'); ?>',
-        success_text: '<?php _e('运单创建成功', 'czlexpress-for-woocommerce'); ?>',
-        error_text: '<?php _e('运单创建失败', 'czlexpress-for-woocommerce'); ?>'
+        ajax_url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+        nonce: '<?php echo esc_attr(wp_create_nonce('czl_ajax_nonce')); ?>',
+        creating_text: '<?php esc_html_e('正在创建运单...', 'czlexpress-for-woocommerce'); ?>',
+        success_text: '<?php esc_html_e('运单创建成功', 'czlexpress-for-woocommerce'); ?>',
+        error_text: '<?php esc_html_e('运单创建失败', 'czlexpress-for-woocommerce'); ?>'
     };
 </script>
 
 <div class="wrap">
-    <h1><?php _e('CZL Express 订单管理', 'czlexpress-for-woocommerce'); ?></h1>
+    <h1><?php esc_html_e('CZL Express 订单管理', 'czlexpress-for-woocommerce'); ?></h1>
     
     <div class="tablenav top">
         <div class="alignleft actions">
             <select id="bulk-action-selector-top">
-                <option value="-1"><?php _e('批量操作', 'czlexpress-for-woocommerce'); ?></option>
-                <option value="create_shipment"><?php _e('创建运单', 'czlexpress-for-woocommerce'); ?></option>
+                <option value="-1"><?php esc_html_e('批量操作', 'czlexpress-for-woocommerce'); ?></option>
+                <option value="create_shipment"><?php esc_html_e('创建运单', 'czlexpress-for-woocommerce'); ?></option>
             </select>
-            <button class="button" id="doaction"><?php _e('应用', 'czlexpress-for-woocommerce'); ?></button>
+            <button class="button" id="doaction"><?php esc_html_e('应用', 'czlexpress-for-woocommerce'); ?></button>
         </div>
     </div>
     
@@ -78,19 +78,19 @@ wp_enqueue_script('jquery');
                 <td class="manage-column column-cb check-column">
                     <input type="checkbox" id="cb-select-all-1">
                 </td>
-                <th><?php _e('订单号', 'czlexpress-for-woocommerce'); ?></th>
-                <th><?php _e('日期', 'czlexpress-for-woocommerce'); ?></th>
-                <th><?php _e('状态', 'czlexpress-for-woocommerce'); ?></th>
-                <th><?php _e('收件人', 'czlexpress-for-woocommerce'); ?></th>
-                <th><?php _e('配送方式', 'czlexpress-for-woocommerce'); ?></th>
-                <th><?php _e('运单信息', 'czlexpress-for-woocommerce'); ?></th>
-                <th><?php _e('操作', 'czlexpress-for-woocommerce'); ?></th>
+                <th><?php esc_html_e('订单号', 'czlexpress-for-woocommerce'); ?></th>
+                <th><?php esc_html_e('日期', 'czlexpress-for-woocommerce'); ?></th>
+                <th><?php esc_html_e('状态', 'czlexpress-for-woocommerce'); ?></th>
+                <th><?php esc_html_e('收件人', 'czlexpress-for-woocommerce'); ?></th>
+                <th><?php esc_html_e('配送方式', 'czlexpress-for-woocommerce'); ?></th>
+                <th><?php esc_html_e('运单信息', 'czlexpress-for-woocommerce'); ?></th>
+                <th><?php esc_html_e('操作', 'czlexpress-for-woocommerce'); ?></th>
             </tr>
         </thead>
         <tbody>
             <?php 
             if (empty($orders)) {
-                echo '<tr><td colspan="8">' . __('没有找到订单', 'czlexpress-for-woocommerce') . '</td></tr>';
+                echo '<tr><td colspan="8">' . esc_html__('没有找到订单', 'czlexpress-for-woocommerce') . '</td></tr>';
             } else {
                 foreach ($orders as $order): 
                     $order_id = $order->get_id();
@@ -115,7 +115,7 @@ wp_enqueue_script('jquery');
                         <?php 
                         $status_name = wc_get_order_status_name($order->get_status());
                         $status_class = sanitize_html_class('status-' . $order->get_status());
-                        echo "<mark class='order-status {$status_class}'><span>" . esc_html($status_name) . "</span></mark>";
+                        echo wp_kses_post("<mark class='order-status {$status_class}'><span>" . esc_html($status_name) . "</span></mark>");
                         ?>
                     </td>
                     <td>
@@ -128,40 +128,40 @@ wp_enqueue_script('jquery');
                     </td>
                     <td>
                         <?php if ($shipment && !empty($shipment->tracking_number)): ?>
-                            <strong><?php _e('运单号:', 'czlexpress-for-woocommerce'); ?></strong> 
+                            <strong><?php esc_html_e('运单号:', 'czlexpress-for-woocommerce'); ?></strong> 
                             <a href="https://exp.czl.net/track/?query=<?php echo esc_attr($shipment->tracking_number); ?>" target="_blank">
                                 <?php echo esc_html($shipment->tracking_number); ?>
                             </a>
                             <button type="button" class="button button-small edit-tracking-btn" 
-                                    data-order-id="<?php echo $order_id; ?>"
+                                    data-order-id="<?php echo esc_attr($order_id); ?>"
                                     data-tracking-number="<?php echo esc_attr($shipment->tracking_number); ?>"
                                     style="margin-left: 5px;">
                                 <span class="dashicons dashicons-edit" style="font-size: 16px; height: 16px; width: 16px;"></span>
                             </button><br>
-                            <strong><?php _e('CZL订单号:', 'czlexpress-for-woocommerce'); ?></strong> 
+                            <strong><?php esc_html_e('CZL订单号:', 'czlexpress-for-woocommerce'); ?></strong> 
                             <?php echo esc_html($shipment->czl_order_id); ?><br>
-                            <strong><?php _e('参考号:', 'czlexpress-for-woocommerce'); ?></strong> 
+                            <strong><?php esc_html_e('参考号:', 'czlexpress-for-woocommerce'); ?></strong> 
                             <?php echo esc_html($shipment->reference_number); ?><br>
-                            <strong><?php _e('运单状态:', 'czlexpress-for-woocommerce'); ?></strong> 
+                            <strong><?php esc_html_e('运单状态:', 'czlexpress-for-woocommerce'); ?></strong> 
                             <?php echo esc_html($shipment->shipment_status); ?>
                         <?php else: ?>
-                            <?php _e('未创建运单', 'czlexpress-for-woocommerce'); ?>
+                            <?php esc_html_e('未创建运单', 'czlexpress-for-woocommerce'); ?>
                         <?php endif; ?>
                     </td>
                     <td>
                         <?php if (!$shipment || empty($shipment->tracking_number)): ?>
                             <button type="button" class="button czl-create-btn" 
-                                    data-order-id="<?php echo $order_id; ?>">
-                                <?php _e('创建运单', 'czlexpress-for-woocommerce'); ?>
+                                    data-order-id="<?php echo esc_attr($order_id); ?>">
+                                <?php esc_html_e('创建运单', 'czlexpress-for-woocommerce'); ?>
                             </button>
                         <?php elseif (!empty($shipment->czl_order_id)): ?>
                             <button type="button" class="button" 
-                                    onclick="printLabel('<?php echo $shipment->czl_order_id; ?>')">
-                                <?php _e('打印标签', 'czlexpress-for-woocommerce'); ?>
+                                    onclick="printLabel('<?php echo esc_js($shipment->czl_order_id); ?>')">
+                                <?php esc_html_e('打印标签', 'czlexpress-for-woocommerce'); ?>
                             </button>
                             <button type="button" class="button update-tracking-btn" 
-                                    data-order-id="<?php echo $order_id; ?>">
-                                <?php _e('更新轨迹', 'czlexpress-for-woocommerce'); ?>
+                                    data-order-id="<?php echo esc_attr($order_id); ?>">
+                                <?php esc_html_e('更新轨迹', 'czlexpress-for-woocommerce'); ?>
                             </button>
                         <?php endif; ?>
                     </td>
@@ -178,17 +178,17 @@ wp_enqueue_script('jquery');
     <div style="padding:20px;">
         <div class="form-field" style="margin-bottom:15px;">
             <label for="new-tracking-number" style="display:block;margin-bottom:8px;font-weight:600;">
-                <?php _e('新跟踪单号:', 'czlexpress-for-woocommerce'); ?>
+                <?php esc_html_e('新跟踪单号:', 'czlexpress-for-woocommerce'); ?>
             </label>
             <input type="text" id="new-tracking-number" style="width:100%;padding:5px;">
             <input type="hidden" id="edit-order-id" value="">
         </div>
         <div style="text-align:right;margin-top:20px;">
             <button type="button" class="button" onclick="self.parent.tb_remove();" style="margin-right:5px;">
-                <?php _e('取消', 'czlexpress-for-woocommerce'); ?>
+                <?php esc_html_e('取消', 'czlexpress-for-woocommerce'); ?>
             </button>
             <button type="button" class="button button-primary" id="save-tracking-number">
-                <?php _e('保存', 'czlexpress-for-woocommerce'); ?>
+                <?php esc_html_e('保存', 'czlexpress-for-woocommerce'); ?>
             </button>
         </div>
     </div>
@@ -208,7 +208,7 @@ jQuery(document).ready(function($) {
         
         // 打开对话框
         tb_show(
-            '<?php _e('修改跟踪单号', 'czlexpress-for-woocommerce'); ?>', 
+            '<?php esc_html_e('修改跟踪单号', 'czlexpress-for-woocommerce'); ?>', 
             '#TB_inline?width=300&height=180&inlineId=edit-tracking-dialog'
         );
         
@@ -296,7 +296,7 @@ jQuery(document).ready(function($) {
     // 处理创建运单按钮点击
     $(document).on('click', '.czl-create-btn', function() {
         var $button = $(this);
-        var orderId = $button.data('order-id');
+        var orderId = $(this).data('order-id');
         
         // 如果按钮已经在处理中，则返回
         if ($button.hasClass('processing')) {

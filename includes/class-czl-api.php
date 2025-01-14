@@ -46,10 +46,10 @@ class CZL_API {
                 }
                 $this->country_mapping = $mapping;
                 set_transient('czl_country_mapping', $mapping, DAY_IN_SECONDS);
-                error_log('CZL Express: Country mapping updated');
+                CZL_Logger::info('Country mapping updated');
             }
         } catch (Exception $e) {
-            error_log('CZL Express Error: Failed to get country mapping - ' . $e->getMessage());
+            CZL_Logger::error('Failed to get country mapping', array('error' => $e->getMessage()));
             $this->country_mapping = array();
         }
     }
@@ -58,7 +58,7 @@ class CZL_API {
      * 转换国家代码
      */
     private function convert_country_code($wc_country) {
-        error_log('CZL Express: Converting country code ' . $wc_country);
+        CZL_Logger::debug('Converting country code', array('country' => $wc_country));
         
         // 获取WooCommerce国家名称
         $countries = WC()->countries->get_countries();
@@ -67,13 +67,16 @@ class CZL_API {
         // 在映射中查找
         foreach ($this->country_mapping as $name => $code) {
             if (stripos($name, $country_name) !== false || stripos($country_name, $name) !== false) {
-                error_log('CZL Express: Found country mapping ' . $wc_country . ' => ' . $code);
+                CZL_Logger::debug('Found country mapping', array(
+                    'from' => $wc_country,
+                    'to' => $code
+                ));
                 return $code;
             }
         }
         
         // 如果没找到映射，返回原始代码
-        error_log('CZL Express: No mapping found for ' . $wc_country . ', using original code');
+        CZL_Logger::debug('No mapping found, using original code', array('country' => $wc_country));
         return $wc_country;
     }
     
@@ -94,13 +97,13 @@ class CZL_API {
         ));
         
         if (is_wp_error($response)) {
-            throw new Exception($response->get_error_message());
+            throw new Exception(esc_html($response->get_error_message()));
         }
         
         $body = json_decode(wp_remote_retrieve_body($response), true);
         
         if (empty($body['success'])) {
-            throw new Exception(!empty($body['message']) ? esc_html($body['message']) : esc_html__('认证失败', 'woocommerce-czlexpress'));
+            throw new Exception(!empty($body['message']) ? esc_html($body['message']) : esc_html__('认证失败', 'czlexpress-for-woocommerce'));
         }
         
         $this->token = $body['data']['token'];
@@ -115,33 +118,55 @@ class CZL_API {
     /**
      * 发送API请求
      */
-    private function request($endpoint, $method = 'GET', $data = null) {
-        $args = array(
-            'method' => $method,
-            'headers' => array(
-                'Authorization' => $this->get_token(),
-                'Content-Type' => 'application/json'
-            ),
-            'timeout' => 30
-        );
-        
-        if ($data !== null) {
-            $args['body'] = wp_json_encode($data);
+    private function send_request($endpoint, $params = array(), $method = 'GET') {
+        try {
+            $url = $this->get_api_url($endpoint);
+            $headers = $this->get_headers();
+            
+            $args = array(
+                'method' => $method,
+                'headers' => $headers,
+                'timeout' => 30,
+                'sslverify' => false
+            );
+            
+            if ($method === 'POST') {
+                $args['body'] = json_encode($params);
+                CZL_Logger::debug('API request', array(
+                    'url' => $url,
+                    'method' => $method,
+                    'params' => $params
+                ));
+            }
+            
+            $response = wp_remote_request($url, $args);
+            
+            if (is_wp_error($response)) {
+                throw new Exception($response->get_error_message());
+            }
+            
+            $body = wp_remote_retrieve_body($response);
+            $data = json_decode($body, true);
+            
+            CZL_Logger::debug('API response', array(
+                'url' => $url,
+                'response' => $data
+            ));
+            
+            if (!$data) {
+                throw new Exception('Invalid JSON response');
+            }
+            
+            return $data;
+            
+        } catch (Exception $e) {
+            CZL_Logger::error('API request failed', array(
+                'url' => $url,
+                'error' => $e->getMessage(),
+                'params' => $params
+            ));
+            throw $e;
         }
-        
-        $response = wp_remote_request($this->api_url . $endpoint, $args);
-        
-        if (is_wp_error($response)) {
-            throw new Exception($response->get_error_message());
-        }
-        
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        
-        if (empty($body['success'])) {
-            throw new Exception(!empty($body['message']) ? esc_html($body['message']) : esc_html__('请求失败', 'woocommerce-czlexpress'));
-        }
-        
-        return $body['data'];
     }
     
     /**
@@ -165,7 +190,7 @@ class CZL_API {
                 'postcode' => $params['postcode']
             );
             
-            error_log('CZL Express: Shipping rate request - ' . print_r($query, true));
+            CZL_Logger::debug('Shipping rate request', $query);
             
             // 发送请求
             $response = wp_remote_post($api_url . '?' . http_build_query($query), array(
@@ -180,7 +205,7 @@ class CZL_API {
             }
             
             $body = wp_remote_retrieve_body($response);
-            error_log('CZL Express: API raw response - ' . $body);
+            CZL_Logger::debug('API raw response', $body);
             
             $data = json_decode($body, true);
             if (empty($data)) {
@@ -195,7 +220,7 @@ class CZL_API {
             return $data;
             
         } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
+            CZL_Logger::error('API Error', array('message' => $e->getMessage()));
             throw $e;
         }
     }
@@ -225,7 +250,7 @@ class CZL_API {
     public function create_order($order_data) {
         try {
             // 添加请求前的日志
-            error_log('CZL Express: Creating order with data - ' . print_r($order_data, true));
+            CZL_Logger::debug('Creating order', array('data' => $order_data));
             
             $response = wp_remote_post('https://tms.czl.net/createOrderApi.htm', array(
                 'body' => array(
@@ -235,7 +260,7 @@ class CZL_API {
             ));
             
             // 添加响应日志
-            error_log('CZL Express: Raw API response - ' . print_r($response, true));
+            CZL_Logger::debug('API response received', array('response' => $response));
             
             if (is_wp_error($response)) {
                 throw new Exception('API请求失败: ' . $response->get_error_message());
@@ -247,14 +272,16 @@ class CZL_API {
             }
             
             if (empty($result['ack']) || $result['ack'] !== 'true') {
-                throw new Exception(!empty($result['message']) ? esc_html($result['message']) : esc_html__('未知错误', 'woocommerce-czlexpress'));
+                throw new Exception(!empty($result['message']) ? esc_html($result['message']) : esc_html__('未知错误', 'czlexpress-for-woocommerce'));
             }
             
             return $result;
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: Create order failed - ' . esc_html($e->getMessage()));
-            error_log('CZL Express Error Stack Trace: ' . $e->getTraceAsString());
+            CZL_Logger::error('Create order failed', array(
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ));
             throw $e;
         }
     }
@@ -284,7 +311,7 @@ class CZL_API {
             return $result[0]['data'][0];
             
         } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
+            CZL_Logger::error('Failed to get tracking', array('error' => $e->getMessage()));
             throw $e;
         }
     }
@@ -338,7 +365,7 @@ class CZL_API {
             );
             
         } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
+            CZL_Logger::error('Authentication test failed', array('error' => $e->getMessage()));
             throw $e;
         }
     }
@@ -365,14 +392,14 @@ class CZL_API {
             return $result['data'];
             
         } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
+            CZL_Logger::error('Failed to get countries list', array('error' => $e->getMessage()));
             throw $e;
         }
     }
     
     private function ensure_logged_in() {
         try {
-            error_log('CZL Express: Starting authentication');
+            CZL_Logger::info('Starting authentication');
             
             $auth_url = 'https://tms.czl.net/selectAuth.htm';
             $auth_data = array(
@@ -380,7 +407,7 @@ class CZL_API {
                 'password' => $this->password
             );
             
-            error_log('CZL Express: Auth request data - ' . print_r($auth_data, true));
+            CZL_Logger::debug('Auth request data', array('data' => $auth_data));
             
             $ch = curl_init($auth_url);
             curl_setopt($ch, CURLOPT_POST, 1);
@@ -394,7 +421,7 @@ class CZL_API {
             curl_setopt($ch, CURLOPT_TIMEOUT, 30);
             
             $response = curl_exec($ch);
-            error_log('CZL Express: Auth raw response - ' . $response);
+            CZL_Logger::debug('Auth raw response', array('response' => $response));
             
             if (curl_errno($ch)) {
                 throw new Exception('认证请求失败');
@@ -404,7 +431,7 @@ class CZL_API {
             
             // 解析响应
             $result = json_decode(str_replace("'", '"', $response), true);
-            error_log('CZL Express: Auth decoded response - ' . print_r($result, true));
+            CZL_Logger::debug('Auth decoded response', array('result' => $result));
             
             if (empty($result) || !isset($result['customer_id'])) {
                 throw new Exception('认证失败');
@@ -415,7 +442,7 @@ class CZL_API {
             $this->customer_userid = $result['customer_userid'];
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: Authentication failed - ' . esc_html($e->getMessage()));
+            CZL_Logger::error('Authentication failed', array('error' => $e->getMessage()));
             throw new Exception('认证失败，请联系CZL Express');
         }
     }
@@ -441,7 +468,6 @@ class CZL_API {
                 $args['body'] = is_array($data) ? $data : wp_json_encode($data);
             }
 
-            // 使用wp_remote_request替代curl
             $response = wp_remote_request($url, $args);
 
             if (is_wp_error($response)) {
@@ -454,25 +480,25 @@ class CZL_API {
                 throw new Exception('请求失败: 空响应');
             }
 
-            // 记录响应日志
-            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                error_log('CZL Express: Raw response - ' . $body);
-            }
+            CZL_Logger::debug('API raw response', array('response' => $body));
 
             $result = json_decode($body, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                    error_log('CZL Express: JSON decode error - ' . json_last_error_msg());
-                }
+                CZL_Logger::error('JSON decode error', array('error' => json_last_error_msg()));
                 throw new Exception('响应数据格式错误');
+            }
+
+            CZL_Logger::debug('API decoded response', array('result' => $result));
+
+            // 检查API错误信息
+            if (isset($result['message']) && !empty($result['message'])) {
+                CZL_Logger::warning('API returned error message', array('message' => $result['message']));
             }
 
             return $result;
 
         } catch (Exception $e) {
-            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                error_log('CZL Express Error: Request failed - ' . esc_html($e->getMessage()));
-            }
+            CZL_Logger::error('Request failed', array('error' => $e->getMessage()));
             throw $e;
         }
     }
@@ -544,74 +570,53 @@ class CZL_API {
         }
     }
     
-    public function create_shipment($params) {
+    /**
+     * 获取运单轨迹
+     */
+    public function get_tracking_info($tracking_number) {
         try {
-            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                error_log('CZL Express: Starting create shipment');
-            }
-
-            // 先进行认证
-            $auth_result = $this->authenticate();
-            if (!$auth_result['ack']) {
-                throw new Exception('认证失败: ' . $auth_result['message']);
-            }
-
-            // 添加认证信息到参数
-            $params['customer_id'] = $auth_result['customer_id'];
-            $params['customer_userid'] = $auth_result['customer_userid'];
-
-            // 准备请求数据
-            $request_data = array(
-                'param' => wp_json_encode($params)
-            );
-
-            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                error_log('CZL Express: Create shipment request data - ' . print_r($request_data, true));
-            }
-
-            // 发送请求
-            $response = wp_remote_post('https://tms.czl.net/createOrderApi.htm', array(
-                'body' => $request_data,
-                'timeout' => 30,
-                'headers' => array(
-                    'Accept' => '*/*',
-                    'Accept-Language' => 'zh-cn',
-                    'Cache-Control' => 'no-cache',
-                    'Content-Type' => 'application/x-www-form-urlencoded;charset=UTF-8'
-                )
+            $response = $this->send_request('/tracking/query', array(
+                'tracking_number' => $tracking_number
+            ), 'POST');
+            
+            CZL_Logger::debug('Tracking info retrieved', array(
+                'tracking_number' => $tracking_number,
+                'response' => $response
             ));
-
-            if (is_wp_error($response)) {
-                throw new Exception('CURL错误: ' . $response->get_error_message());
-            }
-
-            $body = wp_remote_retrieve_body($response);
-            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                error_log('CZL Express: Raw response - ' . $body);
-            }
-
-            $result = json_decode($body, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new Exception('JSON解析错误: ' . json_last_error_msg());
-            }
-
-            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                error_log('CZL Express: Create shipment response - ' . print_r($result, true));
-            }
-
-            // 检查API错误信息
-            if (isset($result['message']) && !empty($result['message'])) {
-                if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                    error_log('CZL Express: API error message - ' . $result['message']);
-                }
-            }
-
-            return $result;
-
+            
+            return $response;
+            
         } catch (Exception $e) {
-            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
-            }
+            CZL_Logger::error('Failed to get tracking info', array(
+                'tracking_number' => $tracking_number,
+                'error' => $e->getMessage()
+            ));
+            throw $e;
+        }
+    }
+    
+    /**
+     * 创建运单
+     */
+    public function create_shipment($order_data) {
+        try {
+            CZL_Logger::debug('Creating shipment', array(
+                'order_data' => $order_data
+            ));
+            
+            $response = $this->send_request('/shipment/create', $order_data, 'POST');
+            
+            CZL_Logger::debug('Shipment created', array(
+                'response' => $response
+            ));
+            
+            return $response;
+            
+        } catch (Exception $e) {
+            CZL_Logger::error('Failed to create shipment', array(
+                'order_data' => $order_data,
+                'error' => $e->getMessage()
+            ));
             throw $e;
         }
     }
@@ -644,97 +649,6 @@ class CZL_API {
             
         } catch (Exception $e) {
             throw new Exception('获取跟踪单号失败: ' . esc_html($e->getMessage()));
-        }
-    }
-    
-    /**
-     * 获取运单跟踪信息
-     */
-    public function get_tracking_info($tracking_number) {
-        try {
-            $response = wp_remote_post('https://tms.czl.net/selectTrack.htm', array(
-                'body' => array(
-                    'documentCode' => $tracking_number
-                ),
-                'timeout' => 30,
-                'headers' => array(
-                    'Accept-Encoding' => '',
-                    'Accept-Language' => 'zh-CN,zh;q=0.9'
-                )
-            ));
-            
-            if (is_wp_error($response)) {
-                throw new Exception($response->get_error_message());
-            }
-            
-            $body = wp_remote_retrieve_body($response);
-            error_log('CZL Express: Track raw response - ' . $body);
-            
-            // 处理中文编码问题
-            $body = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $body);
-            $result = json_decode($body, true);
-            
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                error_log('CZL Express: JSON decode error - ' . json_last_error_msg());
-                throw new Exception('JSON解析失败: ' . json_last_error_msg());
-            }
-            
-            error_log('CZL Express: Track decoded response - ' . print_r($result, true));
-            
-            if (empty($result) || !isset($result[0])) {
-                throw new Exception('无效的API响应');
-            }
-            
-            if (empty($result[0]['ack']) || $result[0]['ack'] !== 'true') {
-                throw new Exception('获取跟踪信息失败: ' . ($result[0]['message'] ?? '未知错误'));
-            }
-            
-            if (empty($result[0]['data']) || !is_array($result[0]['data'])) {
-                return array(
-                    'success' => true,
-                    'data' => array(
-                        'status' => 'pending',
-                        'track_content' => '暂无轨迹信息',
-                        'track_time' => current_time('mysql'),
-                        'track_location' => ''
-                    ),
-                    'message' => ''
-                );
-            }
-            
-            // 获取最新的轨迹状态
-            $latest_track = $result[0]['data'][0];
-            $track_details = $latest_track['trackDetails'] ?? array();
-            $latest_detail = !empty($track_details) ? $track_details[0] : array();
-            
-            // 根据轨迹内容判断状态
-            $status = 'in_transit'; // 默认状态
-            $track_content = strtolower($latest_detail['track_content'] ?? '');
-            
-            if (strpos($track_content, 'delivered') !== false || strpos($track_content, 'signed') !== false) {
-                $status = 'delivered';
-            } elseif (strpos($track_content, 'pickup') !== false || strpos($track_content, 'picked up') !== false) {
-                $status = 'picked_up';
-            }
-            
-            return array(
-                'success' => true,
-                'data' => array(
-                    'status' => $status,
-                    'track_content' => $latest_detail['track_content'] ?? '',
-                    'track_time' => $latest_detail['track_date'] ?? current_time('mysql'),
-                    'track_location' => $latest_detail['track_location'] ?? ''
-                ),
-                'message' => ''
-            );
-            
-        } catch (Exception $e) {
-            error_log('CZL Express API Error: ' . esc_html($e->getMessage()));
-            return array(
-                'success' => false,
-                'data' => null,
-                'message' => esc_html($e->getMessage())
-            );
         }
     }
 } 

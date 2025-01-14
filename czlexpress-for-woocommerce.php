@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: CZL Express for WooCommerce
- * Plugin URI: https://github.com/woodchen-ink/woocommerce-czlexpress
+ * Plugin URI: https://github.com/woodchen-ink/czlexpress-for-woocommerce
  * Description: CZL Express shipping integration for WooCommerce. Provides real-time shipping rates, shipment creation, and package tracking for CZL Express delivery service.
  * Version: 1.0.0
  * Requires at least: 6.7
@@ -44,52 +44,22 @@ define('CZL_EXPRESS_VERSION', '1.0.0');
 define('CZL_EXPRESS_PATH', plugin_dir_path(__FILE__));
 define('CZL_EXPRESS_URL', plugin_dir_url(__FILE__));
 
-// 在插件激活时创建数据表
-register_activation_hook(__FILE__, 'czl_express_activate');
-
-function czl_express_activate() {
-    // 确保加载安装类
-    require_once CZL_EXPRESS_PATH . 'includes/class-czl-install.php';
-    
-    // 创建数据表和默认选项
-    CZL_Install::init();
-    
-    // 记录版本号
-    update_option('czl_express_version', CZL_EXPRESS_VERSION);
-    
-    // 注册定时任务
-    if (!wp_next_scheduled('czl_sync_tracking_numbers_hook')) {
-        wp_schedule_event(time(), 'hourly', 'czl_sync_tracking_numbers_hook');
-    }
-}
-
-// 在插件停用时清理
-register_deactivation_hook(__FILE__, function() {
-    // 清理定时任务
-    wp_clear_scheduled_hook('czl_sync_tracking_numbers_hook');
-});
-
-// 在插件卸载时清理数据
-register_uninstall_hook(__FILE__, array('CZL_Install', 'uninstall'));
-
-// 声明支持HPOS
-add_action('before_woocommerce_init', function() {
-    if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil')) {
-        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
-    }
-});
+// 加载核心类文件
+require_once CZL_EXPRESS_PATH . 'includes/class-czl-logger.php';
 
 // 检查环境
 function czl_express_check_environment() {
-    if (!class_exists('WooCommerce')) {
+    // 检查WooCommerce是否已安装并激活
+    if (!class_exists('WC_Shipping_Method')) {
         add_action('admin_notices', function() {
             echo '<div class="error"><p>' . 
-                 esc_html__('CZL Express requires WooCommerce to be installed and active', 'czlexpress-for-woocommerce') . 
+                 esc_html__('CZL Express requires WooCommerce to be installed and activated', 'czlexpress-for-woocommerce') . 
                  '</p></div>';
         });
         return false;
     }
-
+    
+    // 检查WooCommerce版本
     if (version_compare(WC_VERSION, '6.0.0', '<')) {
         add_action('admin_notices', function() {
             echo '<div class="error"><p>' . 
@@ -102,22 +72,48 @@ function czl_express_check_environment() {
     return true;
 }
 
+// 在插件激活时创建数据表
+register_activation_hook(__FILE__, 'czl_express_activate');
+
+function czl_express_activate() {
+    // 确保加载安装类
+    require_once CZL_EXPRESS_PATH . 'includes/class-czl-install.php';
+    
+    // 创建数据表和默认选项
+    CZL_Install::init();
+    
+    // 记录版本号
+    update_option('czl_express_version', CZL_EXPRESS_VERSION);
+}
+
+// 在插件停用时清理
+register_deactivation_hook(__FILE__, function() {
+    // 清理定时任务
+    wp_clear_scheduled_hook('czl_update_tracking_info');
+});
+
+// 声明支持HPOS
+add_action('before_woocommerce_init', function() {
+    if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil')) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
+    }
+});
+
 // 初始化插件
 function czl_express_init() {
     if (czl_express_check_environment()) {
-        // 加载语言文件
-        load_plugin_textdomain(
-            'czlexpress-for-woocommerce',
-            false,
-            dirname(plugin_basename(__FILE__)) . '/languages'
-        );
+        CZL_Logger::info('Plugin initialization started');
         
         // 加载必要的类文件
         require_once CZL_EXPRESS_PATH . 'includes/class-czlexpress.php';
         require_once CZL_EXPRESS_PATH . 'includes/class-czl-api.php';
         require_once CZL_EXPRESS_PATH . 'includes/class-czl-order.php';
+        require_once CZL_EXPRESS_PATH . 'includes/class-czl-ajax.php';
         
         CZLExpress::instance();
+        
+        // 初始化AJAX处理器
+        new CZL_Ajax();
         
         // 添加AJAX处理
         add_action('wp_ajax_czl_create_shipment', 'czl_ajax_create_shipment');
@@ -129,6 +125,17 @@ function czl_express_init() {
         
         // 注册自定义订单状态
         add_action('init', 'register_czl_order_statuses');
+        
+        // 在init钩子中加载翻译文件
+        add_action('init', function() {
+            load_plugin_textdomain(
+                'czlexpress-for-woocommerce',
+                false,
+                dirname(plugin_basename(__FILE__)) . '/languages'
+            );
+        });
+        
+        CZL_Logger::info('Plugin initialization completed');
     }
 }
 
@@ -226,14 +233,14 @@ function czl_ajax_update_tracking_number() {
     check_ajax_referer('czl_ajax_nonce', 'nonce');
     
     if (!current_user_can('edit_shop_orders')) {
-        wp_send_json_error('Permission denied');
+        wp_send_json_error(array('message' => '权限不足'));
     }
     
     $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
     $tracking_number = isset($_POST['tracking_number']) ? sanitize_text_field($_POST['tracking_number']) : '';
     
     if (!$order_id || !$tracking_number) {
-        wp_send_json_error('Invalid parameters');
+        wp_send_json_error(array('message' => '参数无效'));
     }
     
     try {
@@ -241,10 +248,10 @@ function czl_ajax_update_tracking_number() {
         
         // 获取运单信息
         $shipment = $wpdb->get_row($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}czl_shipments WHERE order_id = %d",
+            "SELECT * FROM {$wpdb->prefix}czl_shipments WHERE order_id = %d",
             $order_id
         ));
-
+        
         if (!$shipment) {
             throw new Exception('运单不存在');
         }
@@ -270,7 +277,7 @@ function czl_ajax_update_tracking_number() {
             
             // 添加订单备注
             $order->add_order_note(sprintf(
-                'Tracking number updated to: %s',
+                '运单号已更新为: %s',
                 $tracking_number
             ));
         }
@@ -280,30 +287,42 @@ function czl_ajax_update_tracking_number() {
         $tracking->clear_tracking_cache($shipment->id, $tracking_number, $order_id);
         
         wp_send_json_success(array(
-            'message' => '运单号更新成功'
+            'message' => '运单号更新成功',
+            'tracking_number' => $tracking_number
         ));
         
     } catch (Exception $e) {
-        wp_send_json_error($e->getMessage());
+        wp_send_json_error(array('message' => $e->getMessage()));
     }
 }
 
 // 更新轨迹信息的AJAX处理函数
 function czl_ajax_update_tracking_info() {
-    check_ajax_referer('czl_ajax_nonce', 'nonce');
-    
-    if (!current_user_can('edit_shop_orders')) {
-        wp_send_json_error('权限不足');
+    try {
+        // 验证nonce
+        if (!check_ajax_referer('czl_update_tracking_info', 'nonce', false)) {
+            throw new Exception('无效的请求');
+        }
+        
+        // 验证权限
+        if (!current_user_can('edit_shop_orders')) {
+            throw new Exception('权限不足');
+        }
+        
+        $tracking_number = isset($_POST['tracking_number']) ? sanitize_text_field($_POST['tracking_number']) : '';
+        if (empty($tracking_number)) {
+            throw new Exception('运单号不能为空');
+        }
+        
+        $tracking = new CZL_Tracking();
+        $result = $tracking->update_tracking_info($tracking_number);
+        
+        wp_send_json_success($result);
+        
+    } catch (Exception $e) {
+        CZL_Logger::error('Error updating tracking info', array('error' => $e->getMessage()));
+        wp_send_json_error(array('message' => $e->getMessage()));
     }
-    
-    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
-    if (!$order_id) {
-        wp_send_json_error('订单ID无效');
-    }
-    
-    // 使用 wp_schedule_single_event 来异步处理更新
-    wp_schedule_single_event(time(), 'czl_do_update_tracking_info', array($order_id));
-    wp_send_json_success(array('message' => 'Update scheduled'));
 }
 
 // 异步处理轨迹更新
@@ -312,7 +331,10 @@ function czl_do_update_tracking_info($order_id) {
         $czl_order = new CZL_Order();
         $czl_order->update_tracking_info($order_id);
     } catch (Exception $e) {
-        error_log('CZL Express: Error updating tracking info - ' . $e->getMessage());
+        CZL_Logger::error('Error updating tracking info', array(
+            'order_id' => $order_id,
+            'error' => $e->getMessage()
+        ));
     }
 }
 add_action('czl_do_update_tracking_info', 'czl_do_update_tracking_info');
@@ -325,7 +347,10 @@ add_action('woocommerce_order_status_processing', function($order_id) {
     try {
         $czl_order->create_shipment($order_id);
     } catch (Exception $e) {
-        error_log('CZL Express: Auto create shipment failed - ' . $e->getMessage());
+        CZL_Logger::error('Auto create shipment failed', array(
+            'order_id' => $order_id,
+            'error' => $e->getMessage()
+        ));
     }
 });
 
@@ -384,8 +409,14 @@ function czl_sync_tracking_numbers() {
         // 更新最后同步时间
         update_option('czl_last_tracking_sync', $current_time);
         
+        CZL_Logger::info('Tracking sync scheduled', array(
+            'shipment_count' => count($shipments)
+        ));
+        
     } catch (Exception $e) {
-        error_log('CZL Express: Tracking number sync failed - ' . $e->getMessage());
+        CZL_Logger::error('Tracking number sync failed', array(
+            'error' => $e->getMessage()
+        ));
     }
 }
 
@@ -424,13 +455,15 @@ function czl_do_sync_single_tracking($order_id, $current_tracking, $czl_order_id
                 $order->save();
                 
                 $tracking_link = sprintf(
-                    '<a href="https://exp.czl.net/track/?query=%s" target="_blank">Track Your Package</a>',
-                    $response['tracking_number']
+                    '<a href="https://exp.czl.net/track/?query=%s" target="_blank">%s</a>',
+                    $response['tracking_number'],
+                    __('查看物流', 'czlexpress-for-woocommerce')
                 );
                 
                 $order->add_order_note(
                     sprintf(
-                        'Tracking number updated to: %s\n%s',
+                        /* translators: 1: tracking number 2: tracking link */
+                        __('运单号已更新为: %1$s\n%2$s', 'czlexpress-for-woocommerce'),
                         $response['tracking_number'],
                         $tracking_link
                     ),
@@ -439,10 +472,9 @@ function czl_do_sync_single_tracking($order_id, $current_tracking, $czl_order_id
             }
         }
     } catch (Exception $e) {
-        error_log(sprintf(
-            'CZL Express: Failed to sync tracking number for order %d: %s',
-            $order_id,
-            $e->getMessage()
+        CZL_Logger::error('Failed to sync tracking number', array(
+            'order_id' => $order_id,
+            'error' => $e->getMessage()
         ));
     }
 }

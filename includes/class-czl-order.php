@@ -15,7 +15,7 @@ if (!class_exists('CZL_Order')) {
             global $wpdb;
             
             try {
-                error_log('CZL Express: Starting create shipment for order ' . $order_id);
+                CZL_Logger::info('Starting create shipment', array('order_id' => $order_id));
                 
                 // 更新订单备注以显示处理状态
                 $order = wc_get_order($order_id);
@@ -70,7 +70,10 @@ if (!class_exists('CZL_Order')) {
                 
                 // 调用API创建运单
                 $result = $this->api->create_shipment($shipment_data);
-                error_log('CZL Express: API response - ' . print_r($result, true));
+                CZL_Logger::info('API response for shipment creation', array(
+                    'order_id' => $order_id,
+                    'response' => $result
+                ));
                 
                 // 检查API响应状态
                 if ($result['ack'] !== 'true') {
@@ -131,8 +134,11 @@ if (!class_exists('CZL_Order')) {
                 }
                 
             } catch (Exception $e) {
-                error_log('CZL Express Error: Create shipment failed - ' . esc_html($e->getMessage()));
-                error_log('CZL Express Error Stack Trace: ' . esc_html($e->getTraceAsString()));
+                CZL_Logger::error('Create shipment failed', array(
+                    'order_id' => $order_id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ));
                 
                 // 添加错误提示到订单备注
                 if (isset($order)) {
@@ -217,7 +223,10 @@ if (!class_exists('CZL_Order')) {
             // 获取轨迹信息
             $api = new CZL_API();
             $tracking_info = $api->get_tracking_info($shipment->tracking_number);
-            error_log('CZL Express: Tracking API response - ' . print_r($tracking_info, true));
+            CZL_Logger::info('Tracking API response', array(
+                'tracking_number' => $shipment->tracking_number,
+                'response' => $tracking_info
+            ));
             
             // 处理API响应
             if (!empty($tracking_info) && isset($tracking_info['success']) && $tracking_info['success'] == 1) {

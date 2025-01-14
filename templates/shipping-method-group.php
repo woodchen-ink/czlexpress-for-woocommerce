@@ -25,7 +25,7 @@ defined('ABSPATH') || exit;
         <?php if ($rate->remote_fee > 0): ?>
             <div class="remote-fee-notice">
                 <?php
-                /* translators: %s: Remote area fee amount */
+                /* translators: %s: Remote area fee amount in the site's currency format */
                 printf(
                     esc_html__('Remote Area Fee: %s', 'czlexpress-for-woocommerce'), 
                     wp_kses_post(wc_price($rate->remote_fee))

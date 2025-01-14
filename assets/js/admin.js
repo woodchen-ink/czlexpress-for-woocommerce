@@ -65,9 +65,10 @@ jQuery(document).ready(function($) {
                     },
                     success: function(response) {
                         if (response.success) {
+                            alert(response.data.message);
                             location.reload();
                         } else {
-                            alert(response.data);
+                            alert(response.data.message);
                         }
                     },
                     error: function() {
@@ -109,9 +110,10 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success) {
+                    alert('轨迹更新成功');
                     location.reload();
                 } else {
-                    alert(response.data);
+                    alert(response.data.message || '更新失败');
                 }
             },
             error: function() {

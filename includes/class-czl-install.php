@@ -23,6 +23,7 @@ class CZL_Install {
             is_residential varchar(10),
             shipping_method varchar(50),
             status varchar(20),
+            label_url text,
             last_sync_time datetime DEFAULT NULL,
             created_at datetime NOT NULL,
             updated_at datetime NOT NULL,
@@ -47,30 +48,6 @@ class CZL_Install {
     public static function deactivate() {
         // 只清理定时任务
         wp_clear_scheduled_hook('czl_sync_tracking_numbers_hook');
-    }
-    
-    public static function uninstall() {
-        global $wpdb;
-        
-        // 只有在卸载时才删除数据
-        if (!defined('WP_UNINSTALL_PLUGIN')) {
-            return;
-        }
-        
-        // 删除数据表
-        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}czl_shipments");
-        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}czl_tracking_history");
-        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}czl_shipping_rules");
-        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}czl_product_groups");
-        
-        // 删除选项
-        delete_option('czl_express_api_url');
-        delete_option('czl_express_api_key');
-        delete_option('czl_express_api_secret');
-        delete_option('czl_express_test_mode');
-        delete_option('czl_express_version');
-        delete_option('czl_last_tracking_sync');
-        delete_option('czl_express_db_version');
-        delete_option('czl_product_groups');
+        wp_clear_scheduled_hook('czl_update_tracking_info');
     }
 } 

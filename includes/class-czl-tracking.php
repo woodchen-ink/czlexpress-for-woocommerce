@@ -35,80 +35,72 @@ class CZL_Tracking {
      * 更新单个运单的轨迹信息
      */
     public function update_tracking_info($tracking_number) {
-        global $wpdb;
-        
         try {
-            // 获取运单信息
-            $shipment = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}czl_shipments WHERE tracking_number = %s",
-                $tracking_number
-            ));
+            $api = new CZL_API();
+            $tracking_info = $api->get_tracking_info($tracking_number);
             
-            if (!$shipment) {
+            if (!$tracking_info['success']) {
+                throw new Exception($tracking_info['message']);
+            }
+            
+            // 更新跟踪记录
+            $this->update_tracking_record($tracking_number, $tracking_info['data']);
+            
+            return $tracking_info;
+            
+        } catch (Exception $e) {
+            CZL_Logger::error('Failed to update tracking info', array(
+                'tracking_number' => $tracking_number,
+                'error' => $e->getMessage()
+            ));
+            throw $e;
+        }
+    }
+    
+    /**
+     * 更新订单状态
+     */
+    public function update_order_status($order_id, $tracking_info) {
+        try {
+            $order = wc_get_order($order_id);
+            if (!$order) {
                 return;
             }
             
-            // 获取轨迹信息
-            $tracking_info = $this->api->get_tracking($tracking_number);
+            $status = $tracking_info['status'];
+            $content = $tracking_info['track_content'];
+            $location = $tracking_info['track_location'];
+            $time = $tracking_info['track_time'];
             
-            if (!empty($tracking_info['trackDetails'])) {
-                foreach ($tracking_info['trackDetails'] as $detail) {
-                    // 检查是否已存在该轨迹记录
-                    $exists = $wpdb->get_var($wpdb->prepare(
-                        "SELECT id FROM {$wpdb->prefix}czl_tracking_history 
-                        WHERE shipment_id = %d AND track_date = %s AND track_content = %s",
-                        $shipment->id,
-                        $detail['track_date'],
-                        $detail['track_content']
-                    ));
-                    
-                    if (!$exists) {
-                        // 插入新的轨迹记录
-                        $wpdb->insert(
-                            $wpdb->prefix . 'czl_tracking_history',
-                            array(
-                                'shipment_id' => $shipment->id,
-                                'tracking_number' => $tracking_number,
-                                'track_date' => $detail['track_date'],
-                                'track_location' => $detail['track_location'],
-                                'track_content' => $detail['track_content'],
-                                'created_at' => current_time('mysql')
-                            ),
-                            array('%d', '%s', '%s', '%s', '%s', '%s')
-                        );
-                    }
-                }
-                
-                // 更新运单状态
-                $latest = reset($tracking_info['trackDetails']);
-                $new_status = 'in_transit';
-                
-                if (strpos($latest['track_content'], '已签收') !== false || 
-                    strpos($latest['track_content'], 'Delivered') !== false) {
-                    $new_status = 'delivered';
-                }
-                
-                // 更新运单状态
-                $wpdb->update(
-                    $wpdb->prefix . 'czl_shipments',
-                    array('status' => $new_status),
-                    array('id' => $shipment->id),
-                    array('%s'),
-                    array('%d')
-                );
-                
-                // 更新WooCommerce订单状态
-                $order = wc_get_order($shipment->order_id);
-                if ($order) {
-                    $order->update_status($new_status, esc_html__('Package status updated from tracking info', 'czlexpress-for-woocommerce'));
-                }
-
-                // 清除相关缓存
-                $this->clear_tracking_cache($shipment->id, $tracking_number, $shipment->order_id);
+            // 添加订单备注
+            $order->add_order_note(sprintf(
+                /* translators: 1: status 2: location 3: time 4: details */
+                __('包裹状态: %1$s, 位置: %2$s, 时间: %3$s, 详情: %4$s', 'czlexpress-for-woocommerce'),
+                $status,
+                $location,
+                $time,
+                $content
+            ));
+            
+            // 更新订单状态
+            switch ($status) {
+                case 'delivered':
+                    $order->update_status('completed');
+                    break;
+                case 'in_transit':
+                    $order->update_status('in_transit');
+                    break;
+                case 'picked_up':
+                    $order->update_status('processing');
+                    break;
             }
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: Failed to update tracking info - ' . $e->getMessage());
+            CZL_Logger::error('Tracking error', array(
+                'order_id' => $order_id,
+                'error' => $e->getMessage()
+            ));
+            throw $e;
         }
     }
     
@@ -180,7 +172,10 @@ class CZL_Tracking {
                 echo '</div>';
             }
         } catch (Exception $e) {
-            error_log('CZL Express Tracking Error: ' . $e->getMessage());
+            CZL_Logger::error('Tracking display error', array(
+                'tracking_number' => $tracking_number,
+                'error' => $e->getMessage()
+            ));
         }
     }
     
@@ -256,7 +251,7 @@ class CZL_Tracking {
                 }
                 if ($remote_text) {
                     echo '<p><strong>' . esc_html__('地区类型：', 'czlexpress-for-woocommerce') . '</strong> ' . 
-                         $remote_text . '</p>';
+                         esc_html($remote_text) . '</p>';
                 }
             }
             

@@ -50,20 +50,56 @@ class CZL_Product_Fields {
      * 保存自定义字段
      */
     public function save_custom_fields($post_id) {
-        // 保存中文品名
-        $name_cn = isset($_POST['_czl_name_cn']) ? sanitize_text_field($_POST['_czl_name_cn']) : '';
-        update_post_meta($post_id, '_czl_name_cn', $name_cn);
+        // 验证nonce
+        if (!isset($_POST['czl_product_fields_nonce']) || 
+            !wp_verify_nonce($_POST['czl_product_fields_nonce'], 'czl_save_product_fields')) {
+            return;
+        }
         
-        // 保存海关编码
-        $hs_code = isset($_POST['_czl_hs_code']) ? sanitize_text_field($_POST['_czl_hs_code']) : '';
-        update_post_meta($post_id, '_czl_hs_code', $hs_code);
+        // 检查自动保存
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
         
-        // 保存用途
-        $usage = isset($_POST['_czl_usage']) ? sanitize_text_field($_POST['_czl_usage']) : '';
-        update_post_meta($post_id, '_czl_usage', $usage);
+        // 检查权限
+        if (!current_user_can('edit_product', $post_id)) {
+            return;
+        }
         
-        // 保存材质
-        $material = isset($_POST['_czl_material']) ? sanitize_text_field($_POST['_czl_material']) : '';
-        update_post_meta($post_id, '_czl_material', $material);
+        // 中文品名
+        if (isset($_POST['_czl_name_cn'])) {
+            update_post_meta(
+                $post_id,
+                '_czl_name_cn',
+                sanitize_text_field(wp_unslash($_POST['_czl_name_cn']))
+            );
+        }
+        
+        // HS编码
+        if (isset($_POST['_czl_hs_code'])) {
+            update_post_meta(
+                $post_id,
+                '_czl_hs_code',
+                sanitize_text_field(wp_unslash($_POST['_czl_hs_code']))
+            );
+        }
+        
+        // 用途
+        if (isset($_POST['_czl_usage'])) {
+            update_post_meta(
+                $post_id,
+                '_czl_usage',
+                sanitize_text_field(wp_unslash($_POST['_czl_usage']))
+            );
+        }
+        
+        // 材质
+        if (isset($_POST['_czl_material'])) {
+            update_post_meta(
+                $post_id,
+                '_czl_material',
+                sanitize_text_field(wp_unslash($_POST['_czl_material']))
+            );
+        }
     }
 } 

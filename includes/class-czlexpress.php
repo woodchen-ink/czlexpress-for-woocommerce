@@ -153,15 +153,15 @@ class CZLExpress {
     
     public function render_product_groups_page() {
         // 处理表单提交
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && 
+        if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' && 
             check_admin_referer('czl_save_product_groups', 'czl_product_groups_nonce')) {
             
             $groups = array();
             if (!empty($_POST['groups'])) {
-                foreach ($_POST['groups'] as $key => $group) {
+                foreach (wp_unslash($_POST['groups']) as $key => $group) {
                     if (empty($group['groupName'])) continue;
                     
-                    $prefixes = array_filter(array_map('trim', explode("\n", $group['prefixes'])));
+                    $prefixes = array_filter(array_map('sanitize_text_field', array_map('trim', explode("\n", $group['prefixes']))));
                     if (empty($prefixes)) continue;
                     
                     $groups[sanitize_key($group['groupName'])] = array(
@@ -333,7 +333,7 @@ class CZLExpress {
     
     public function render_exchange_rates_page() {
         // 处理表单提交
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && 
+        if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' && 
             check_admin_referer('czl_save_exchange_rates', 'czl_exchange_rates_nonce')) {
             
             // 删除所有现有汇率
@@ -342,11 +342,10 @@ class CZLExpress {
             
             // 保存新的汇率
             if (!empty($_POST['rates'])) {
-                foreach ($_POST['rates'] as $data) {
+                foreach (wp_unslash($_POST['rates']) as $data) {
                     if (empty($data['currency']) || !isset($data['rate'])) continue;
-                    
                     $currency = sanitize_text_field($data['currency']);
-                    $rate = (float)$data['rate'];
+                    $rate = (float) $data['rate'];
                     
                     if ($rate > 0) {
                         update_option('czl_exchange_rate_' . $currency, $rate);
@@ -470,15 +469,33 @@ class CZLExpress {
      * 定时更新所有运输中订单的轨迹
      */
     public function schedule_tracking_updates() {
-        $orders = wc_get_orders(array(
-            'status' => array('shipping'),
-            'limit' => -1,
-            'meta_key' => '_czl_tracking_number',
-            'meta_compare' => 'EXISTS'
-        ));
+        global $wpdb;
         
-        foreach ($orders as $order) {
-            $this->order_handler->update_tracking_info($order->get_id());
+        // 从自定义表中获取需要更新的运单
+        $shipments = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT order_id FROM {$wpdb->prefix}czl_shipments 
+                WHERE status NOT IN ('delivered', 'cancelled', 'failed') 
+                AND tracking_number IS NOT NULL 
+                ORDER BY last_sync_time ASC 
+                LIMIT %d",
+                50 // 每次处理的最大数量
+            )
+        );
+        
+        if (empty($shipments)) {
+            return;
+        }
+        
+        foreach ($shipments as $shipment) {
+            try {
+                $this->order_handler->update_tracking_info($shipment->order_id);
+            } catch (Exception $e) {
+                CZL_Logger::error('Failed to update tracking info', array(
+                    'order_id' => $shipment->order_id,
+                    'error' => $e->getMessage()
+                ));
+            }
         }
     }
     
@@ -543,7 +560,10 @@ class CZLExpress {
             }
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: ' . $e->getMessage());
+            CZL_Logger::error('Shipment creation error', array(
+                'error' => $e->getMessage(),
+                'order_id' => isset($order) ? $order->get_id() : null
+            ));
             if (isset($order)) {
                 $order->add_order_note(
                     sprintf(

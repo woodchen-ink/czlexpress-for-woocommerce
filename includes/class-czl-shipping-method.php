@@ -106,7 +106,7 @@ class WC_CZL_Shipping_Method extends WC_Shipping_Method {
         }
         
         try {
-            error_log('CZL Express: Starting shipping calculation');
+            CZL_Logger::info('Starting shipping calculation');
             
             $calculator = new CZL_Rate_Calculator();
             $rates = $calculator->calculate_shipping_rate($package);
@@ -131,13 +131,13 @@ class WC_CZL_Shipping_Method extends WC_Shipping_Method {
                     ));
                 }
                 
-                error_log('CZL Express: Added ' . count($rates) . ' shipping rates');
+                CZL_Logger::info('Added shipping rates', array('count' => count($rates)));
             } else {
-                error_log('CZL Express: No shipping rates available');
+                CZL_Logger::info('No shipping rates available');
             }
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: Failed to calculate shipping - ' . $e->getMessage());
+            CZL_Logger::error('Failed to calculate shipping', array('error' => $e->getMessage()));
         }
     }
     

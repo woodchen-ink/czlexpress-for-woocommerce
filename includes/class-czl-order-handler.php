@@ -62,7 +62,10 @@ class CZL_Order_Handler {
                 return $response;
             }
         } catch (Exception $e) {
-            error_log('CZL Express Error: Failed to create shipment - ' . $e->getMessage());
+            CZL_Logger::error('Failed to create shipment', array(
+                'order_id' => $order_id,
+                'error' => $e->getMessage()
+            ));
             throw $e;
         }
         
@@ -114,18 +117,24 @@ class CZL_Order_Handler {
                 $e->getMessage()
             );
             $order->add_order_note($error_message);
-            error_log('CZL Express Error: ' . $error_message);
+            CZL_Logger::error('Shipment cancellation failed', array(
+                'order_id' => $order_id,
+                'error' => $e->getMessage()
+            ));
         }
     }
     
     public function process_order_action($order) {
         try {
-            error_log('CZL Express: Processing order action for order ' . $order->get_id());
+            CZL_Logger::info('Processing order action', array('order_id' => $order->get_id()));
             
             // 检查是否已经创建过运单
             $tracking_number = $order->get_meta('_czl_tracking_number');
             if (!empty($tracking_number)) {
-                error_log('CZL Express: Order already has tracking number: ' . $tracking_number);
+                CZL_Logger::info('Order already has tracking number', array(
+                    'order_id' => $order->get_id(),
+                    'tracking_number' => $tracking_number
+                ));
                 return;
             }
             
@@ -133,10 +142,16 @@ class CZL_Order_Handler {
             $czl_order = new CZL_Order();
             $result = $czl_order->create_shipment($order->get_id());
             
-            error_log('CZL Express: Create shipment result - ' . print_r($result, true));
+            CZL_Logger::info('Create shipment result', array(
+                'order_id' => $order->get_id(),
+                'result' => $result
+            ));
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: Failed to process order action - ' . $e->getMessage());
+            CZL_Logger::error('Failed to process order action', array(
+                'order_id' => $order->get_id(),
+                'error' => $e->getMessage()
+            ));
         }
     }
 } 

@@ -74,12 +74,12 @@ $settings = array(
     </form>
     
     <div class="czl-api-test">
-        <h2><?php _e('API Connection Test', 'czlexpress-for-woocommerce'); ?></h2>
+        <h2><?php esc_html_e('API Connection Test', 'czlexpress-for-woocommerce'); ?></h2>
         <button type="button" class="button" id="czl-test-connection">
-            <?php _e('Test Connection', 'czlexpress-for-woocommerce'); ?>
+            <?php esc_html_e('Test Connection', 'czlexpress-for-woocommerce'); ?>
         </button>
         <button type="button" class="button" id="czl-test-shipping-rate">
-            <?php _e('Test Shipping Rate', 'czlexpress-for-woocommerce'); ?>
+            <?php esc_html_e('Test Shipping Rate', 'czlexpress-for-woocommerce'); ?>
         </button>
         <div id="czl-test-result"></div>
     </div>
@@ -92,11 +92,11 @@ jQuery(function($) {
         var $result = $('#czl-test-result');
         
         $button.prop('disabled', true);
-        $result.html('<?php _e('Testing...', 'czlexpress-for-woocommerce'); ?>');
+        $result.html('<?php esc_html_e('Testing...', 'czlexpress-for-woocommerce'); ?>');
         
         $.post(ajaxurl, {
             action: 'czl_test_connection',
-            nonce: '<?php echo wp_create_nonce('czl_test_api'); ?>'
+            nonce: '<?php echo esc_attr(wp_create_nonce('czl_test_api')); ?>'
         }, function(response) {
             $button.prop('disabled', false);
             if (response.success) {
@@ -112,15 +112,15 @@ jQuery(function($) {
         var $result = $('#czl-test-result');
         
         $button.prop('disabled', true);
-        $result.html('<?php _e('Testing...', 'czlexpress-for-woocommerce'); ?>');
+        $result.html('<?php esc_html_e('Testing...', 'czlexpress-for-woocommerce'); ?>');
         
         $.post(ajaxurl, {
             action: 'czl_test_shipping_rate',
-            nonce: '<?php echo wp_create_nonce('czl_test_api'); ?>'
+            nonce: '<?php echo esc_attr(wp_create_nonce('czl_test_api')); ?>'
         }, function(response) {
             $button.prop('disabled', false);
             if (response.success) {
-                var html = '<div class="notice notice-success"><p><?php _e('Shipping rates retrieved successfully:', 'czlexpress-for-woocommerce'); ?></p>';
+                var html = '<div class="notice notice-success"><p><?php esc_html_e('Shipping rates retrieved successfully:', 'czlexpress-for-woocommerce'); ?></p>';
                 html += '<pre>' + wp.escapeHtml(JSON.stringify(response.data, null, 2)) + '</pre></div>';
                 $result.html(html);
             } else {

@@ -11,37 +11,50 @@ class CZL_Label {
      */
     public static function get_label_url($order_id) {
         try {
-            $order = wc_get_order($order_id);
-            if (!$order) {
-                throw new Exception('Order not found');
+            $czl_order_id = get_post_meta($order_id, '_czl_order_id', true);
+            if (!$czl_order_id) {
+                throw new Exception('未找到CZL订单号');
             }
             
-            // 获取运单号和订单号
-            $tracking_number = $order->get_meta('_czl_tracking_number');
-            $czl_order_id = $order->get_meta('_czl_order_id');
+            $api = new CZL_API();
+            $url = $api->get_label($czl_order_id);
             
-            // 构建标签URL
-            $base_url = 'https://tms.czl.net/printOrderLabel.htm';
-            $params = array();
-            
-            // 优先使用订单号
-            if (!empty($czl_order_id)) {
-                $params['order_id'] = $czl_order_id;
-                $url = add_query_arg($params, $base_url);
-                return $url;
+            if (empty($url)) {
+                throw new Exception('获取标签URL失败');
             }
             
-            // 如果没有订单号但有运单号，使用运单号
-            if (!empty($tracking_number)) {
-                $params['documentCode'] = $tracking_number;
-                $url = add_query_arg($params, $base_url);
-                return $url;
-            }
-            
-            throw new Exception('No tracking number or order ID found');
+            return $url;
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: Failed to get label URL - ' . $e->getMessage());
+            CZL_Logger::error('Failed to get label URL', array(
+                'order_id' => $order_id,
+                'error' => $e->getMessage()
+            ));
+            throw $e;
+        }
+    }
+    
+    /**
+     * 打印运单标签
+     */
+    public static function print_label($order_id) {
+        try {
+            $url = self::get_label_url($order_id);
+            
+            if (empty($url)) {
+                throw new Exception('标签URL为空');
+            }
+            
+            // 保存标签URL
+            update_post_meta($order_id, '_czl_label_url', $url);
+            
+            return $url;
+            
+        } catch (Exception $e) {
+            CZL_Logger::error('Failed to print label', array(
+                'order_id' => $order_id,
+                'error' => $e->getMessage()
+            ));
             throw $e;
         }
     }
@@ -60,7 +73,10 @@ class CZL_Label {
                 );
             }
         } catch (Exception $e) {
-            error_log('CZL Express Error: ' . $e->getMessage());
+            CZL_Logger::error('Label print action error', array(
+                'order_id' => $order->get_id(),
+                'error' => $e->getMessage()
+            ));
         }
         return $actions;
     }
@@ -70,19 +86,19 @@ class CZL_Label {
      */
     public static function handle_print_request() {
         if (!current_user_can('edit_shop_orders')) {
-            wp_die(__('您没有权限执行此操作', 'czlexpress-for-woocommerce'));
+            wp_die(esc_html__('您没有权限执行此操作', 'czlexpress-for-woocommerce'));
         }
         
         check_admin_referer('czl_print_label');
         
         $order_id = isset($_GET['order_id']) ? absint($_GET['order_id']) : 0;
         if (!$order_id) {
-            wp_die(__('订单ID无效', 'czlexpress-for-woocommerce'));
+            wp_die(esc_html__('订单ID无效', 'czlexpress-for-woocommerce'));
         }
         
         $label_url = self::get_label_url($order_id);
         if (!$label_url) {
-            wp_die(__('未找到运单标签', 'czlexpress-for-woocommerce'));
+            wp_die(esc_html__('未找到运单标签', 'czlexpress-for-woocommerce'));
         }
         
         wp_redirect($label_url);

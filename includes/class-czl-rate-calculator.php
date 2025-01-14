@@ -154,16 +154,15 @@ class CZL_Rate_Calculator {
                 $rate = $operator === '+' ? $rate + $amount : $rate - $amount;
             }
             
-            error_log(sprintf(
-                'CZL Express: Adjusted rate from %f to %f using formula: %s',
-                $original_rate,
-                $rate,
-                $adjustment
+            CZL_Logger::debug('Rate adjustment', array(
+                'original_rate' => $original_rate,
+                'adjusted_rate' => $rate,
+                'formula' => $adjustment
             ));
             
             return max(0, $rate);
         } catch (Exception $e) {
-            error_log('CZL Express: Rate adjustment error - ' . $e->getMessage());
+            CZL_Logger::error('Rate adjustment error', array('error' => $e->getMessage()));
             return $rate;
         }
     }
@@ -197,13 +196,16 @@ class CZL_Rate_Calculator {
         return $chargeable_weight * $quantity;
     }
 
+    /**
+     * 计算运费
+     */
     public function calculate_shipping_rate($package) {
         try {
-            error_log('CZL Express: Calculating shipping rate for package: ' . print_r($package, true));
+            CZL_Logger::debug('Calculating shipping rate for package', array('package' => $package));
             
             // 基本验证
             if (empty($package['destination']['country'])) {
-                error_log('CZL Express: Empty destination country');
+                CZL_Logger::warning('Empty destination country');
                 return array();
             }
             
@@ -229,11 +231,11 @@ class CZL_Rate_Calculator {
                 'height' => 10   // 添加固定尺寸
             );
             
-            error_log('CZL Express: API params with chargeable weight: ' . print_r($api_params, true));
+            CZL_Logger::debug('API params with chargeable weight', array('params' => $api_params));
             
             // 调用API获取运费
             $api_rates = $this->api->get_shipping_rate($api_params);
-            error_log('CZL Express: API response: ' . print_r($api_rates, true));
+            CZL_Logger::debug('API response', array('rates' => $api_rates));
             
             if (empty($api_rates)) {
                 return array();
@@ -305,12 +307,15 @@ class CZL_Rate_Calculator {
             return $show_all_rates === 'yes' ? array_values($all_rates) : array_values($grouped_rates);
             
         } catch (Exception $e) {
-            error_log('CZL Express Error: ' . $e->getMessage());
+            CZL_Logger::error('Failed to calculate shipping rate', array('error' => $e->getMessage()));
             wc_add_notice($e->getMessage(), 'error');
             return array();
         }
     }
     
+    /**
+     * 翻译配送时间
+     */
     private function translate_delivery_time($delivery_time) {
         // 获取当前语言环境
         $locale = determine_locale();
@@ -369,9 +374,7 @@ class CZL_Rate_Calculator {
         
         // 如果经过翻译后与原文相同，说明没有匹配到任何规则
         if ($translated === $delivery_time) {
-            // 添加调试日志
-            error_log('CZL Express: Unable to translate delivery time - ' . $delivery_time);
-            return $delivery_time;
+            CZL_Logger::warning('Unable to translate delivery time', array('delivery_time' => $delivery_time));
         }
         
         return $translated;
