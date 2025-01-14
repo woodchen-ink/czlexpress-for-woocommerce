@@ -43,8 +43,58 @@ class CZL_Tracking {
                 throw new Exception($tracking_info['message']);
             }
             
-            // 更新跟踪记录
-            $this->update_tracking_record($tracking_number, $tracking_info['data']);
+            // 更新订单状态
+            global $wpdb;
+            $shipment = $wpdb->get_row($wpdb->prepare(
+                "SELECT order_id FROM {$wpdb->prefix}czl_shipments WHERE tracking_number = %s",
+                $tracking_number
+            ));
+            
+            if ($shipment && $shipment->order_id) {
+                $order = wc_get_order($shipment->order_id);
+                if ($order) {
+                    // 获取最新的轨迹信息
+                    $latest_track_content = $tracking_info['data']['track_content'];
+                    $latest_track_location = $tracking_info['data']['track_location'];
+                    $latest_track_time = $tracking_info['data']['track_time'];
+                    
+                    // 获取订单的备注
+                    $notes = wc_get_order_notes(['order_id' => $shipment->order_id, 'limit' => 1]);
+                    
+                    // 检查是否需要添加新备注
+                    $should_add_note = true;
+                    if (!empty($notes)) {
+                        $last_note = $notes[0];
+                        // 检查最后一条备注是否包含相同的轨迹信息
+                        if (strpos($last_note->content, $latest_track_content) !== false &&
+                            strpos($last_note->content, $latest_track_location) !== false &&
+                            strpos($last_note->content, $latest_track_time) !== false) {
+                            $should_add_note = false;
+                        }
+                    }
+                    
+                    if ($should_add_note) {
+                        // 添加轨迹信息作为订单备注（设置为公开可见）
+                        $note = sprintf(
+                            "📦 Package Update\n\n" .
+                            "Status: %s\n" .
+                            "Location: %s\n" .
+                            "Time: %s\n\n" .
+                            "Track your package: https://exp.czl.net/track/?query=%s",
+                            $latest_track_content,
+                            $latest_track_location,
+                            $latest_track_time,
+                            $tracking_number
+                        );
+                        $order->add_order_note($note, 1); // 1表示对客户可见
+                    }
+                    
+                    // 如果是已签收状态，更新订单状态
+                    if ($tracking_info['data']['status'] === 'delivered') {
+                        $order->update_status('completed', '📦 Package delivered, order completed automatically');
+                    }
+                }
+            }
             
             return $tracking_info;
             

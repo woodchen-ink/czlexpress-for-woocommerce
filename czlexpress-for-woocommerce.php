@@ -300,24 +300,40 @@ function czl_ajax_update_tracking_number() {
 function czl_ajax_update_tracking_info() {
     try {
         // 验证nonce
-        if (!check_ajax_referer('czl_update_tracking_info', 'nonce', false)) {
-            throw new Exception('无效的请求');
-        }
+        check_ajax_referer('czl_ajax_nonce', 'nonce');
         
         // 验证权限
         if (!current_user_can('edit_shop_orders')) {
             throw new Exception('权限不足');
         }
         
-        $tracking_number = isset($_POST['tracking_number']) ? sanitize_text_field($_POST['tracking_number']) : '';
-        if (empty($tracking_number)) {
-            throw new Exception('运单号不能为空');
+        $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+        if (!$order_id) {
+            throw new Exception('订单ID不能为空');
+        }
+        
+        // 获取运单信息
+        global $wpdb;
+        $shipment = $wpdb->get_row($wpdb->prepare(
+            "SELECT tracking_number FROM {$wpdb->prefix}czl_shipments WHERE order_id = %d",
+            $order_id
+        ));
+        
+        if (!$shipment || empty($shipment->tracking_number)) {
+            throw new Exception('未找到运单信息');
         }
         
         $tracking = new CZL_Tracking();
-        $result = $tracking->update_tracking_info($tracking_number);
+        $result = $tracking->update_tracking_info($shipment->tracking_number);
         
-        wp_send_json_success($result);
+        if ($result['success']) {
+            wp_send_json_success(array(
+                'message' => '轨迹更新成功',
+                'data' => $result['data']
+            ));
+        } else {
+            throw new Exception($result['message'] ?: '更新失败');
+        }
         
     } catch (Exception $e) {
         CZL_Logger::error('Error updating tracking info', array('error' => $e->getMessage()));

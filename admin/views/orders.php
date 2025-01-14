@@ -249,11 +249,11 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success) {
-                    alert(wp.escapeHtml(response.data.message || '跟踪单号更新成功'));
+                    alert(response.data.message || '跟踪单号更新成功');
                     self.parent.tb_remove();
                     window.location.reload();
                 } else {
-                    alert(wp.escapeHtml(response.data || '更新失败'));
+                    alert(response.data.message || '更新失败');
                 }
             },
             error: function() {
@@ -279,15 +279,16 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success) {
-                    alert('轨迹更新成功');
+                    alert(response.data.message || '轨迹更新成功');
                     window.location.reload();
                 } else {
-                    alert(response.data || '更新失败');
-                    $button.prop('disabled', false).text('更新轨迹');
+                    alert(typeof response.data === 'string' ? response.data : (response.data.message || '更新失败'));
                 }
             },
-            error: function() {
-                alert('请求失败，请重试');
+            error: function(xhr, status, error) {
+                alert('请求失败，请重试: ' + error);
+            },
+            complete: function() {
                 $button.prop('disabled', false).text('更新轨迹');
             }
         });
